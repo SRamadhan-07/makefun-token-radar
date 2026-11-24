@@ -3,22 +3,91 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Launch Radar — pre-token protocols ranked by implied value</title>
+<title>SONAR - Token Launch Radar</title>
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
-<header class="topbar">
-  <div class="brand">
-    <span class="pulse" aria-hidden="true"></span>
+<header class="masthead">
+  <div class="masthead-in">
     <div>
-      <h1>LAUNCH RADAR</h1>
-      <p class="tagline">Pre-token protocols, ranked by what their launch would be worth — and how to farm each one.</p>
+      <h1>SONAR <span class="thin">/ token launch radar</span></h1>
+      <p class="sub" id="subline">Loading the board...</p>
     </div>
+    <div class="mast-stats" id="mastStats"></div>
   </div>
-  <div class="stats" id="stats"></div>
 </header>
-<main id="app" aria-busy="true"></main>
-<footer class="foot" id="method"></footer>
+
+<main>
+  <section class="panel model-panel">
+    <h2>How the board is priced</h2>
+    <p id="modelText"></p>
+    <p id="farmbookText"></p>
+  </section>
+
+  <section class="controls">
+    <div class="seg" role="tablist">
+      <button id="viewBoard" class="seg-btn active" type="button">Pre-token board</button>
+      <button id="viewLive" class="seg-btn" type="button">Already trading</button>
+    </div>
+    <input id="search" type="search" placeholder="Search name, category, chain..." aria-label="Search the board">
+    <select id="filter" aria-label="Filter rows">
+      <option value="all">All rows</option>
+      <option value="researched">Hand-researched plans</option>
+      <option value="points-live">Points live</option>
+      <option value="flags">Safety flags &amp; corrections</option>
+      <option value="yield-only">Yield only (no points)</option>
+      <option value="no-retail-farm">No retail farm</option>
+      <option value="watchlist">Watchlist</option>
+      <option value="early">Early radar</option>
+    </select>
+    <select id="sort" aria-label="Sort rows">
+      <option value="rank">Sort: rank</option>
+      <option value="implied">Sort: implied value</option>
+      <option value="tvl">Sort: TVL</option>
+      <option value="growth">Sort: 7d growth</option>
+    </select>
+  </section>
+
+  <section class="layout">
+    <div class="panel table-panel">
+      <table id="board">
+        <thead>
+          <tr>
+            <th class="num">#</th>
+            <th>Protocol</th>
+            <th class="num">TVL</th>
+            <th class="num">7d</th>
+            <th class="num">Implied value</th>
+            <th>Farm plan</th>
+          </tr>
+        </thead>
+        <tbody id="boardBody"></tbody>
+      </table>
+      <table id="liveTable" hidden>
+        <thead>
+          <tr>
+            <th>Protocol</th>
+            <th class="num">Market cap</th>
+            <th class="num">TVL</th>
+            <th class="num">MCap / TVL</th>
+            <th class="num">7d</th>
+          </tr>
+        </thead>
+        <tbody id="liveBody"></tbody>
+      </table>
+      <p class="count" id="rowCount"></p>
+    </div>
+
+    <aside class="panel detail" id="detail">
+      <p class="detail-empty">Select a protocol to see its model breakdown and farm plan.</p>
+      <noscript><p class="detail-empty">This dashboard renders its data with JavaScript; enable it to explore the board.</p></noscript>
+    </aside>
+  </section>
+
+  <footer>
+    <p id="footline"></p>
+  </footer>
+</main>
 <script src="../data.js"></script>
 <script src="app.js"></script>
 </body>

@@ -1,10 +1,13 @@
-// SONAR: a token launch radar entry (Node 22, standard library only).
+// SONAR v2 entry point: a token launch radar with a hand-researched farmbook.
 //
-// The program reads the sealed snapshot from /input/snapshot.json (or --input <file|dir>), scores
-// every rankable pre-token protocol with the SONAR model in lib/model.ts, writes the ranked board
-// to /output/board.json, writes the dashboard's data to /output/data.js, copies this repository's
-// dashboard/ and screenshots/ into /output, and last writes /output/dossier.json with
-// buildDossier from vendor/makefun-board.ts, byte for byte as the scorer rebuilds it.
+// Reads the sealed snapshot from /input/snapshot.json (or --input <file|dir>), ranks every
+// rankable pre-token protocol with the SONAR-2 model in lib/model.ts, and writes:
+//   /output/board.json    the ranked board (rows carry the v2 farm layer: researched or template)
+//   /output/data.js       the dashboard's dataset (window.RADAR)
+//   /output/dashboard/    a copy of this repository's dashboard/
+//   /output/screenshots/  a copy of this repository's screenshots/
+//   /output/dossier.json  written last, with buildDossier from vendor/makefun-board.ts,
+//                         byte for byte as the scorer rebuilds it from the same /output
 //
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts --input ../input/snapshot.json
@@ -17,13 +20,13 @@ import { buildDossier } from './vendor/makefun-board.ts';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 
-/** The scorer's own caps (reference/gate.json): the text cap shapes the dossier, the rest refuse. */
+/** The scorer's caps (reference/gate.json): the text cap shapes the dossier, the rest refuse. */
 const TEXT_MAX_BYTES = 65_536;
 const SCREENSHOT_CAPS = { max: 4, max_bytes: 524_288 };
 const DASHBOARD_CAPS = { max_files: 400, max_bytes: 4_194_304 };
 const IMAGE_NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$/;
 
-/** --name <value> out of the arguments, or the fallback. */
+/** The value of --name in the arguments (either form), or the fallback. */
 function arg(name: string, fallback: string): string {
   const at = process.argv.indexOf(`--${name}`);
   if (at >= 0 && at + 1 < process.argv.length) return process.argv[at + 1]!;
@@ -46,12 +49,15 @@ if (issue !== null) {
   process.stderr.write(`sonar: the model wrote a board the gate refuses: ${issue}\n`);
   process.exit(1);
 }
+const flagged = board.filter(
+  (r) => r.farm.status === 'do-not-deposit' || r.farm.status === 'points-ended' || r.farm.status === 'already-trading',
+).length;
 
 mkdirSync(out, { recursive: true });
 writeFileSync(join(out, 'board.json'), `${JSON.stringify({ rows: board })}\n`);
 writeFileSync(join(out, 'data.js'), dataScript(radar));
 
-/** Copy one directory's regular files into `to`, skipping names that start with a dot. */
+/** Copy one directory's regular files into `to`, skipping dotfiles; returns the names copied. */
 function copyFiles(from: string, to: string): string[] {
   if (!existsSync(from)) return [];
   mkdirSync(to, { recursive: true });
@@ -69,7 +75,7 @@ function copyFiles(from: string, to: string): string[] {
 const dashFiles = copyFiles(join(here, 'dashboard'), join(out, 'dashboard'));
 const shots = copyFiles(join(here, 'screenshots'), join(out, 'screenshots'));
 if (shots.length < 3) {
-  process.stderr.write(`sonar: screenshots/ holds ${shots.length} image${shots.length === 1 ? '' : 's'}: hand in 3, the board, a detail view and a filtered view\n`);
+  process.stderr.write(`sonar: screenshots/ holds ${shots.length} image${shots.length === 1 ? '' : 's'}: hand in 3 - the board, a detail view and a filtered view\n`);
   process.exit(1);
 }
 for (const name of shots) {
@@ -79,10 +85,10 @@ for (const name of shots) {
   }
 }
 
-// The dossier is written last: the scorer rebuilds it from this /output and compares bytes.
+// Written last on purpose: the scorer rebuilds the dossier from this /output and compares bytes.
 writeFileSync(join(out, 'dossier.json'), buildDossier(out, { text_max_bytes: TEXT_MAX_BYTES, screenshots: SCREENSHOT_CAPS, dashboard: DASHBOARD_CAPS }));
 
 process.stdout.write(
-  `sonar: ${snapshot.protocols.length} protocols scanned, ${radar.pretoken_size} record no token, ${board.length} rows ranked (${snapshot.watchlist.length} watchlist, ${radar.early_size} early)\n` +
+  `sonar: ${snapshot.protocols.length} protocols scanned, ${radar.pretoken_size} record no token, ${board.length} rows ranked (${snapshot.watchlist.length} watchlist, ${radar.early_size} early), ${radar.researched_size} rows carry hand-researched farm plans (${flagged} of them flagged: safety, ended or already-trading)\n` +
     `sonar: wrote ${join(out, 'board.json')}, ${join(out, 'data.js')}, ${join(out, 'dashboard')} (${dashFiles.length} files), ${join(out, 'screenshots')} (${shots.length} images) and ${join(out, 'dossier.json')}\n`,
 );

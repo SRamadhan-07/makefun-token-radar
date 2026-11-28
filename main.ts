@@ -1,94 +1,156 @@
-// SONAR v2 entry point: a token launch radar with a hand-researched farmbook.
+// SONAR-3 token launch radar — entry point.
 //
-// Reads the sealed snapshot from /input/snapshot.json (or --input <file|dir>), ranks every
-// rankable pre-token protocol with the SONAR-2 model in lib/model.ts, and writes:
-//   /output/board.json    the ranked board (rows carry the v2 farm layer: researched or template)
-//   /output/data.js       the dashboard's dataset (window.RADAR)
-//   /output/dashboard/    a copy of this repository's dashboard/
-//   /output/screenshots/  a copy of this repository's screenshots/
-//   /output/dossier.json  written last, with buildDossier from vendor/makefun-board.ts,
-//                         byte for byte as the scorer rebuilds it from the same /output
+// Reads the sealed snapshot, prices every launch-eligible protocol that
+// records no token with the SONAR-3 model (lib/model.ts), attaches a farm plan to each row — hand
+// researched where the farmbook has one (lib/farmbook.ts), a clearly labelled
+// category template otherwise (lib/templates.ts) — then writes board.json and
+// data.js, copies dashboard/ and screenshots/ into the output, and writes
+// dossier.json last with the kit's unmodified buildDossier.
 //
-// Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
-//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts --input ../input/snapshot.json
+// Deterministic by construction: rows sort by implied value descending with
+// slug as the tie-break, all maps iterate in sorted order, and no clock or
+// randomness is read. Two runs write byte-identical outputs.
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync, cpSync, existsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { boardIssue, buildRadar, dataScript, parseSnapshot } from './lib/model.ts';
+import { buildModel, price, launchEligible, type Snapshot, type Protocol } from './lib/model.ts';
+import { FARMBOOK, FARMBOOK2, type FarmPlan } from './lib/farmbook.ts';
+import { templatePlan } from './lib/templates.ts';
 import { buildDossier } from './vendor/makefun-board.ts';
 
-const here = fileURLToPath(new URL('.', import.meta.url));
+// Research corrections: these protocols record no token in the snapshot, but
+// hand research (2026-11-24/27) proves a token already trades in the real
+// world. They stay on the board — coverage is the floor — flagged honestly.
+const ALREADY_TRADING = new Set([
+  'usdd', 'bittensor-dtao', 'figure-markets-exchange', 'doppler-finance',
+  'infinifi', 'apex-omni', 'manta-cedefi',
+]);
 
-/** The scorer's caps (reference/gate.json): the text cap shapes the dossier, the rest refuse. */
-const TEXT_MAX_BYTES = 65_536;
-const SCREENSHOT_CAPS = { max: 4, max_bytes: 524_288 };
-const DASHBOARD_CAPS = { max_files: 400, max_bytes: 4_194_304 };
-const IMAGE_NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$/;
+const RESEARCHED: Record<string, FarmPlan> = { ...FARMBOOK, ...FARMBOOK2 };
 
-/** The value of --name in the arguments (either form), or the fallback. */
-function arg(name: string, fallback: string): string {
-  const at = process.argv.indexOf(`--${name}`);
-  if (at >= 0 && at + 1 < process.argv.length) return process.argv[at + 1]!;
-  const withEquals = process.argv.find((a) => a.startsWith(`--${name}=`));
-  return withEquals === undefined ? fallback : withEquals.slice(name.length + 3);
+function argValue(flag: string): string | null {
+  const i = process.argv.indexOf(flag);
+  return i >= 0 && i + 1 < process.argv.length ? process.argv[i + 1] : null;
 }
 
-const inputArg = arg('input', '/input');
-const inputFile = inputArg.endsWith('.json') ? inputArg : join(inputArg, 'snapshot.json');
-if (!existsSync(inputFile)) {
-  process.stderr.write(`sonar: no snapshot at ${inputFile}: pass --input <snapshot.json|directory> or mount the sealed /input\n`);
-  process.exit(2);
-}
-const out = arg('output', process.env.MAKEFUN_OUTPUT_DIR ?? '/output');
+function main(): void {
+  const inputPath = argValue('--input');
+  if (!inputPath) throw new Error('usage: node main.ts --input <snapshot.json>');
+  const outDir = process.env.MAKEFUN_OUTPUT_DIR || 'out';
+  const root = dirname(fileURLToPath(import.meta.url));
 
-const snapshot = parseSnapshot(readFileSync(inputFile, 'utf8'));
-const { board, radar } = buildRadar(snapshot);
-const issue = boardIssue(board, snapshot);
-if (issue !== null) {
-  process.stderr.write(`sonar: the model wrote a board the gate refuses: ${issue}\n`);
-  process.exit(1);
-}
-const flagged = board.filter(
-  (r) => r.farm.status === 'do-not-deposit' || r.farm.status === 'points-ended' || r.farm.status === 'already-trading',
-).length;
+  const snap = JSON.parse(readFileSync(inputPath, 'utf8')) as Snapshot;
+  const model = buildModel(snap);
+  const watch = new Set(snap.watchlist);
 
-mkdirSync(out, { recursive: true });
-writeFileSync(join(out, 'board.json'), `${JSON.stringify({ rows: board })}\n`);
-writeFileSync(join(out, 'data.js'), dataScript(radar));
+  // The board's subjects, as a funnel: every protocol scanned, then those
+  // whose record carries no token (both gecko_id and symbol null in the
+  // snapshot's own fields), then those that pass the launch-eligibility rule
+  // (lib/model.ts) — wrapped, staked, bridged and exchange records of tokens
+  // that already trade are not launch candidates.
+  const recordsNoToken = snap.protocols.filter((p) => p.gecko_id === null && p.symbol === null);
+  const subjects = recordsNoToken.filter(launchEligible);
 
-/** Copy one directory's regular files into `to`, skipping dotfiles; returns the names copied. */
-function copyFiles(from: string, to: string): string[] {
-  if (!existsSync(from)) return [];
-  mkdirSync(to, { recursive: true });
-  const copied: string[] = [];
-  for (const name of readdirSync(from)) {
-    if (name.startsWith('.')) continue;
-    const path = join(from, name);
-    if (!statSync(path).isFile()) continue;
-    copyFileSync(path, join(to, name));
-    copied.push(name);
+  const rows = subjects.map((p: Protocol) => {
+    const priced = price(p, model);
+    const researched = RESEARCHED[p.slug];
+    const plan: FarmPlan = researched ?? templatePlan(p);
+    const tokenStatus = ALREADY_TRADING.has(p.slug) ? 'already-trading' : 'pre-token';
+    return {
+      slug: p.slug,
+      name: p.name,
+      category: p.category,
+      chains: p.chains,
+      tvl_usd: p.tvl_usd,
+      change_7d: p.change_7d,
+      listed_at: p.listed_at,
+      watchlist: watch.has(p.slug),
+      token_status: tokenStatus,
+      rank: 0,
+      implied_value_usd: priced.implied,
+      implied_low_usd: priced.impliedLo,
+      implied_high_usd: priced.impliedHi,
+      confidence: priced.confidence,
+      model: {
+        multiple: round4(priced.multiple),
+        multiple_low: round4(priced.multipleLo),
+        multiple_high: round4(priced.multipleHi),
+        growth_factor: round4(priced.growth),
+        maturity_factor: round4(priced.maturity),
+        days_listed: priced.daysListed,
+        peers: priced.peers,
+        discount: 0.85,
+      },
+      farm: {
+        source: researched ? 'researched' : 'template',
+        status: tokenStatus === 'already-trading' && plan.status !== 'do-not-deposit' ? 'already-trading' : plan.status,
+        verdict: plan.verdict,
+        venue: plan.venue,
+        capital: plan.capital,
+        total_cost: plan.totalCost,
+        total_time: plan.totalTime,
+        safety: plan.safety,
+        risks: plan.risks,
+      },
+      farm_steps: plan.steps,
+    };
+  });
+
+  rows.sort((a, b) => b.implied_value_usd - a.implied_value_usd || (a.slug < b.slug ? -1 : 1));
+  rows.forEach((r, i) => { r.rank = i + 1; });
+
+  // Gate self-check: fail loudly rather than write an invalid board.
+  const problems: string[] = [];
+  if (rows.length < 100 || rows.length > 4000) problems.push(`row count ${rows.length}`);
+  for (const w of snap.watchlist) if (!rows.some((r) => r.slug === w)) problems.push(`watchlist missing ${w}`);
+  rows.forEach((r, i) => { if (r.rank !== i + 1) problems.push(`rank gap at ${r.slug}`); });
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i].implied_value_usd > rows[i - 1].implied_value_usd) problems.push(`implied rises at rank ${i + 1}`);
   }
-  return copied;
-}
-
-const dashFiles = copyFiles(join(here, 'dashboard'), join(out, 'dashboard'));
-const shots = copyFiles(join(here, 'screenshots'), join(out, 'screenshots'));
-if (shots.length < 3) {
-  process.stderr.write(`sonar: screenshots/ holds ${shots.length} image${shots.length === 1 ? '' : 's'}: hand in 3 - the board, a detail view and a filtered view\n`);
-  process.exit(1);
-}
-for (const name of shots) {
-  if (!IMAGE_NAME.test(name)) {
-    process.stderr.write(`sonar: screenshots/${name}: a name is letters, digits and . _ -, 1 to 128 characters\n`);
-    process.exit(1);
+  for (const r of rows) {
+    if (r.farm_steps.length < 3 || r.farm_steps.length > 12) problems.push(`steps count ${r.slug}`);
+    for (const s of r.farm_steps) {
+      const n = s.trim().length;
+      if (n < 20 || n > 600) problems.push(`step length ${n} in ${r.slug}`);
+    }
   }
+  if (problems.length > 0) throw new Error('gate self-check failed: ' + problems.slice(0, 8).join('; '));
+
+  const categories = [...model.categories.values()]
+    .sort((a, b) => (a.category < b.category ? -1 : 1))
+    .map((c) => ({
+      category: c.category, peers: c.peers,
+      multiple: round4(c.median), multiple_low: round4(c.p25), multiple_high: round4(c.p75),
+    }));
+
+  const meta = {
+    model: 'SONAR-3',
+    as_of: snap.as_of,
+    scanned: snap.protocols.length,
+    records_no_token: recordsNoToken.length,
+    rows: rows.length,
+    watchlist_rows: rows.filter((r) => r.watchlist).length,
+    researched_rows: rows.filter((r) => r.farm.source === 'researched').length,
+    global_multiple: round4(model.globalMedian),
+    loocv_median_error_pct: model.loocvMedianErrorPct,
+    loocv_mean_error_pct: model.loocvMeanErrorPct,
+    loocv_cases: model.loocvCases,
+    categories,
+  };
+
+  mkdirSync(outDir, { recursive: true });
+  writeFileSync(join(outDir, 'board.json'), JSON.stringify({ meta, rows }, null, 1) + '\n');
+  writeFileSync(join(outDir, 'data.js'), 'window.RADAR=' + JSON.stringify({ meta, rows }) + ';\n');
+  cpSync(join(root, 'dashboard'), join(outDir, 'dashboard'), { recursive: true });
+  cpSync(join(root, 'screenshots'), join(outDir, 'screenshots'), { recursive: true });
+  if (!existsSync(join(outDir, 'dossier.json'))) writeFileSync(join(outDir, 'dossier.json'), '');
+  writeFileSync(join(outDir, 'dossier.json'), buildDossier(outDir, { text_max_bytes: 65536 }));
+  console.log(`SONAR-3: ${snap.protocols.length} scanned, ${recordsNoToken.length} record no token, ${rows.length} eligible rows, LOOCV median error ${model.loocvMedianErrorPct}% over ${model.loocvCases} peers`);
 }
 
-// Written last on purpose: the scorer rebuilds the dossier from this /output and compares bytes.
-writeFileSync(join(out, 'dossier.json'), buildDossier(out, { text_max_bytes: TEXT_MAX_BYTES, screenshots: SCREENSHOT_CAPS, dashboard: DASHBOARD_CAPS }));
+function round4(x: number): number {
+  return Math.round(x * 10000) / 10000;
+}
 
-process.stdout.write(
-  `sonar: ${snapshot.protocols.length} protocols scanned, ${radar.pretoken_size} record no token, ${board.length} rows ranked (${snapshot.watchlist.length} watchlist, ${radar.early_size} early), ${radar.researched_size} rows carry hand-researched farm plans (${flagged} of them flagged: safety, ended or already-trading)\n` +
-    `sonar: wrote ${join(out, 'board.json')}, ${join(out, 'data.js')}, ${join(out, 'dashboard')} (${dashFiles.length} files), ${join(out, 'screenshots')} (${shots.length} images) and ${join(out, 'dossier.json')}\n`,
-);
+main();

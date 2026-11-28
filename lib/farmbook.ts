@@ -1,629 +1,821 @@
-// The v2 farmbook: hand-researched farm plans for the top of the SONAR-2 board.
-//
-// v1 generated every farm plan from a category template. For v2, the 27 protocols at the top of
-// the board (ranks 1-24, 26, 27 and 30) were researched one by one against the protocols' own
-// documentation and apps on 2026-11-24. Each entry below records what the research actually
-// found: where the farm happens, whether a points programme exists and whether it is still
-// running, what it costs, and the risks a farmer has to price in. Where the research found no
-// retail farm, the plan says so plainly instead of dressing up a generic template - an honest
-// "do not farm this" is worth more to a reader than a confident-sounding invention.
-//
-// Status vocabulary:
-//   points-live       a documented points programme is running now
-//   points-unverified a points programme is documented, but live accrual was not verified
-//   yield-only        no points programme; the honest farm is native yield (plus venue campaigns)
-//   cash-rewards      rewards exist but are paid in cash/stablecoins, not points or a token
-//   points-ended      the points programme is over; new deposits earn yield only
-//   do-not-deposit    a named venue in this plan was exploited or paused - keep money out of it
-//   already-trading   correction: the token already exists; there is no launch to farm
-//   no-retail-farm    no farm a retail wallet can actually run (institution-only, not a vault,
-//                     insufficient public information, or no token by design)
+// Researched farm plans, hand-checked against each protocol's own docs, app
+// and official channels on 2026-11-24 (batch 1) and 2026-11-27 (batch 2).
+// Honesty rules: a plan that finds nothing to farm says so; statuses use one
+// taxonomy; figures marked [estimate] are planning assumptions, not protocol
+// promises; safety flags are never softened. Rows without an entry here get a
+// category template from templates.ts and are labelled as templates forever.
 
-export type PlanStatus =
-  | 'points-live'
-  | 'points-unverified'
-  | 'yield-only'
-  | 'cash-rewards'
-  | 'points-ended'
-  | 'do-not-deposit'
-  | 'already-trading'
-  | 'no-retail-farm';
+export type FarmStatus =
+  | 'points-live' | 'yield-only' | 'no-retail-farm' | 'already-trading'
+  | 'cash-rewards' | 'points-unverified' | 'points-ended' | 'do-not-deposit';
 
-export interface ResearchedPlan {
-  slug: string;
-  status: PlanStatus;
-  /** Short badge text for the dashboard. */
-  status_label: string;
-  /** One line: what the points situation honestly is. */
-  points: string;
-  /** Where the farm actually happens (app, chain, product). */
+export interface FarmPlan {
+  status: FarmStatus;
+  verdict: string;
   venue: string;
-  /** Sensible capital for the plan, in words. */
-  min_capital: string;
-  /** The plan itself: concrete steps with costs and times, each 20-600 characters. */
+  capital: string;
+  totalCost: string;
+  totalTime: string;
+  safety: boolean;
   steps: string[];
-  /** The risks the research surfaced, in short phrases. */
   risks: string[];
 }
 
-export const FARMBOOK_VERSION = 'v2-research-2026-11-24';
+export const FARMBOOK: Record<string, FarmPlan> = {
+  'steakhouse-financial': {
+    status: 'yield-only', safety: false,
+    verdict: 'No Steakhouse points or token documented; the farm is Morpho vault yield plus any Merkl campaign on the vault.',
+    venue: 'Morpho app (Base), curator filter Steakhouse Financial', capital: '$500-$1,000',
+    totalCost: 'Under $1 in Base gas for entry and exit combined', totalTime: 'About 20 minutes to set up, then 10 minutes a week',
+    steps: [
+      'Hold USDC on Base and keep a little ETH there for gas; bridging or withdrawing USDC straight to Base costs under $1 and takes about 10 minutes.',
+      'In the Morpho app, filter curator = Steakhouse Financial and open Steakhouse Prime USDC (Base); approve and deposit (gas under $0.10, about 5 minutes).',
+      'Optionally place a smaller, higher-risk tranche in Steakhouse High Yield USDC; its wider collateral set is why it is sized second, at no extra gas cost.',
+      'Hold the steakUSDC share token and check the vault page weekly (10 minutes) for liquidity and any Merkl campaign forwarded from its markets; claim rewards if they appear.',
+      'Exit by redeeming shares for USDC in the Morpho app (gas under $0.10); redemptions pay out only up to the vault liquidity shown on the page.',
+    ],
+    risks: ['Morpho markets target ~90% utilisation, so a full exit can wait for borrower repayments', 'Morpho Vault V2 socialises realised bad debt into the share price for all holders', 'Term and Turbo vault lines have maturities and leverage; they are not the instant-exit Prime vaults'],
+  },
+  'sentora-curator': {
+    status: 'yield-only', safety: false,
+    verdict: 'No Sentora points or token documented; return is PYUSD/RLUSD vault APY plus any Merkl campaign, nothing else.',
+    venue: 'Morpho app (Ethereum), curator filter Sentora', capital: '$1,000-$2,500',
+    totalCost: 'About $4-$15 all-in: two stablecoin conversion legs plus Ethereum gas in and out', totalTime: 'About 40 minutes to set up, then 10 minutes a week',
+    steps: [
+      'Acquire PYUSD or RLUSD on Ethereum first: swap or withdraw from an exchange (about 15 minutes; budget $1-$5 gas plus 0.05-0.3% swap slippage).',
+      'In the Morpho app, filter curator = Sentora and deposit into Paypal USD Main or Sentora RLUSD Main (approve plus deposit, $1-$5 gas, about 5 minutes).',
+      'Treat Sentora PRIME Main and Huma PST Main as single-collateral credit bets, not diversified vaults; size them smaller or skip them entirely.',
+      'Check the vault Liquidity figure weekly (10 minutes): at research time only about a quarter of the main vaults was shown as liquid.',
+      'Exit by redeeming in the Morpho app up to available liquidity, then swap PYUSD/RLUSD back to USDC (another $1-$5 gas plus slippage leg).',
+    ],
+    risks: ['Only ~25% of the main vaults was liquid at research time; a larger run would queue redemptions', 'PRIME Main and Huma PST Main each underwrite one RWA issuer, not a diversified book', 'PYUSD and RLUSD carry issuer freeze risk distinct from USDC'],
+  },
+  'gauntlet': {
+    status: 'cash-rewards', safety: false,
+    verdict: 'No Gauntlet points or token; the one dated cash incentive is OKX Wallet\'s $350K campaign for supplying its X Layer Gauntlet vault (up to 3% bonus APR).',
+    venue: 'Morpho app (Base/Ethereum) and OKX Wallet on X Layer', capital: '$500-$1,000',
+    totalCost: 'Under $1 on Base; $1-$10 bridging if you add the X Layer campaign leg', totalTime: 'About 25 minutes, plus 20-30 minutes one-off for the X Layer setup',
+    steps: [
+      'Core leg: hold USDC on Base, open Gauntlet USDC Prime (Base) in the Morpho app, approve and deposit (gas under $0.10, about 5 minutes).',
+      'Optional yield leg: a minority tranche in Gauntlet USDC Frontier on Ethereum ($1-$5 gas) only after reading its syrupUSDC and PT-sUSDe collateral.',
+      'Campaign leg: in OKX Wallet on X Layer, supply USDC to the Gauntlet vault for the documented $100K supply pool (up to 3% bonus APR); verify the campaign end date in-app first.',
+      'Check allocations and Merkl campaigns weekly (10 minutes); Gauntlet partly closed its V1 vault supply queues in Nov 2026, so confirm your vault still accepts deposits.',
+      'Exit by redeeming in the Morpho app subject to live liquidity (Frontier showed only ~47% liquid at research time).',
+    ],
+    risks: ['Frontier takes thinner emerging collateral; failed liquidations are how Morpho bad debt is created', 'V1 vault owners can change the performance fee at once with no timelock; prefer V2 listings', 'The X Layer campaign end date was not disclosed in coverage; early exit may forfeit bonus APR'],
+  },
+  'usdd': {
+    status: 'already-trading', safety: false,
+    verdict: 'Already trading: USDD is itself the $1 stablecoin (excess income buys back JST). There is no pre-token farm; this is a ~4% yield position only.',
+    venue: 'USDD app / USDD Earn (Ethereum or BNB Chain)', capital: '$100+',
+    totalCost: 'PSM swap is free 1:1; chain gas only, under $0.30 on BNB Chain or $1-$10 on Ethereum', totalTime: 'About 10 minutes to enter, then passive',
+    steps: [
+      'Swap USDT or USDC to USDD 1:1 through the Peg Stability Module in the USDD app (0 fee; gas only, about 5 minutes).',
+      'Deposit USDD into USDD Earn and hold sUSDD; the ~4% base APY accrues into the sUSDD exchange rate with no claiming step (about 5 minutes).',
+      'Do not mint USDD from the new ETH/WBTC vaults to farm Earn: their 4-4.5% stability fee meets a 4% Earn rate, so the loop is net-negative before gas.',
+      'Exit by redeeming sUSDD back to USDD (no fixed lock-up documented), then swap USDD back 1:1 through the PSM (gas only).',
+    ],
+    risks: ['USDD depegged in its 1.0 era and traded near $0.998 in Nov 2026', 'The 4% rate is variable and has already fallen 20% to 5% to 4%', 'Admin-key holders for vault rules, PSM and the Smart Allocator are not publicly documented'],
+  },
+  'veda': {
+    status: 'points-unverified', safety: false,
+    verdict: 'Veda Points ran in 2024-25 seasons; no live Veda-run season and no VEDA token is announced. Today the farm is partner-front-end yield only.',
+    venue: 'ether.fi Liquid, Lombard DeFi Vault, or Kraken DeFi Earn (Veda BoringVaults sit underneath)', capital: '$500-$1,000',
+    totalCost: 'About $2-$15 gas on Ethereum routes; under $0.50 on Optimism; $0 gas via Kraken', totalTime: 'About 15 minutes per venue, then passive',
+    steps: [
+      'Pick a front-end, because there is no Veda app: ether.fi Liquid for liquidUSD/liquidETH/liquidBTC, Lombard for BTC, or Kraken DeFi Earn for zero-gas USDC (about 10 minutes).',
+      'Deposit in that front-end and hold the share token in the depositing wallet; moving shares into wrappers can drop them out of any campaign tracking (gas $0-$15 by route).',
+      'BTC route: stake BTC in the Lombard app to mint LBTC, then deposit LBTC/WBTC into the Lombard DeFi Vault and hold LBTCv (1.5% annual management fee).',
+      'Exit through the same front-end and wait out the queue: ether.fi Liquid up to 3 days, 7 days for its RWA vault; Lombard within 3 days.',
+    ],
+    risks: ['Withdrawal queues are structural: 3-7 days depending on the vault', 'ether.fi Liquid is not available to US residents', 'A BoringVault-level issue would hit many partner products at once'],
+  },
+  'nonce-capital': {
+    status: 'no-retail-farm', safety: false,
+    verdict: 'Insufficient public info for a direct farm: no Nonce-curated Morpho vault could be verified. The only reachable exposure is indirect, via ether.fi Liquid.',
+    venue: 'ether.fi Liquid (Ethereum) — indirect only', capital: '$1,000-$2,500',
+    totalCost: 'About $2-$10 Ethereum gas across entry and the two-step native exit', totalTime: 'About 15 minutes to set up, then a monthly check',
+    steps: [
+      'Do not deposit into anything labelled Nonce on Morpho without an official link from Nonce itself; no such vault was verified in this research (5 minutes of checking, $0).',
+      'Indirect route: in ether.fi Liquid choose Liquid USD, Liquid ETH or Liquid BTC by the asset you hold; approve and deposit ($1-$5 gas, about 10 minutes).',
+      'Hold the liquid share token; base yield auto-compounds and there is no Nonce points programme to track or claim.',
+      'Exit natively and wait: KyberSwap\'s guide puts native withdrawal at about 3 days, up to 10 days depending on strategy conditions.',
+    ],
+    risks: ['Attribution risk: public sources do not show which Liquid strategies are Nonce\'s at any moment', 'Native exits take 3-10 days; instant exits depend on secondary-market liquidity', 'No Nonce token or distribution has ever been announced; the thesis is pure speculation'],
+  },
+  'polymarket-international': {
+    status: 'cash-rewards', safety: false,
+    verdict: 'No points and no documented POLY airdrop allocation; every documented reward is cash in pUSD: liquidity rewards, maker rebates and 3.25%/yr holding rewards.',
+    venue: 'polymarket.com order book (Polygon)', capital: '$200-$1,000',
+    totalCost: 'No deposit fee; Polygon gas under $0.05 per transaction; the real cost is inventory risk on filled orders', totalTime: 'Holding route: minutes. Liquidity route: 30-60 minutes a day of re-quoting',
+    steps: [
+      'Check your country is not blocked or close-only before depositing anything, then sign up at polymarket.com and deposit USDC (converted to pUSD, no platform fee, about 10 minutes).',
+      'Liquidity route: find markets with a live rewards config, then rest two-sided limit orders inside the max spread at or above the minimum size (e.g. 20 shares); re-quote as the midpoint moves.',
+      'Passive route: buy YES and/or NO in a Holding-Rewards-eligible long-dated market and hold; the 3.25% annualised reward is sampled hourly and paid daily.',
+      'Never wash-trade or self-match: the programme docs say rewards can be withheld for exploitative behaviour.',
+      'Collect payouts daily at midnight UTC ($1 minimum per programme) and withdraw pUSD whenever you stop (no withdrawal fee documented).',
+    ],
+    risks: ['Resting orders get filled: you end up holding event contracts, which is inventory risk, not free yield', 'Maker rebates only start at $200,000 of 30-day maker volume, so they are not a starter farm', 'Geo restrictions are enforced; a blocked region can leave an account close-only'],
+  },
+  'rockawayx': {
+    status: 'yield-only', safety: false,
+    verdict: 'No RockawayX points or token documented; the farm is curator vault yield on Morpho (Ethereum) or its Kamino RWA vault on Solana.',
+    venue: 'Morpho app (Ethereum), curator filter RockawayX; Kamino on Solana', capital: '$1,000+',
+    totalCost: 'About $2-$10 Ethereum gas in and out; Solana route costs cents', totalTime: 'About 20 minutes to set up, then 10 minutes a week',
+    steps: [
+      'There is no RockawayX deposit app: open the Morpho vault list filtered to curator RockawayX and pick USDC Prime (conservative) or USDC Yield (moderate) (about 10 minutes).',
+      'Approve and deposit USDC on Ethereum ($1-$5 gas); hold the vault share token (the Yield vault\'s receipt is cited as roxUSDCy).',
+      'Solana alternative: deposit USDC into the RockawayX RWA Vault on Kamino, whose allocations run across OnRe, Huma and Figure markets (fees are cents, about 10 minutes).',
+      'Check allocations and Merkl campaigns weekly (10 minutes); exit in the venue app subject to live market liquidity.',
+    ],
+    risks: ['RockawayX serves institutions and HNWIs; retail documentation is thin by design', 'Its Huma and RWA vaults underwrite single-issuer receivables credit', 'Morpho bad debt is socialised into the share price for all depositors'],
+  },
+  'bittensor-dtao': {
+    status: 'already-trading', safety: false,
+    verdict: 'Already trading: TAO trades (~$2.16B market cap, 21M hard cap). This slug is Bittensor\'s dTAO AMM pools; there is no future dTAO token to farm, only staking yield.',
+    venue: 'Bittensor staking via btcli or the Taostats dashboard', capital: '$500+',
+    totalCost: 'One CEX withdrawal plus small TAO network fees (a full root-basket claim costs about 0.057 TAO)', totalTime: 'About 30 minutes to set up, then occasional claims',
+    steps: [
+      'Create a Bittensor coldkey wallet and back up the seed phrase offline; never send funds to a hotkey address (about 10 minutes, $0).',
+      'Buy TAO on an exchange that lists it and withdraw to your coldkey address (addresses start with 5); budget the exchange withdrawal fee, about 10 minutes.',
+      'Conservative route: stake to a root-network (netuid 0) validator so principal stays 1:1 in TAO with no swap slippage; check the validator take (default 18%) first.',
+      'Aggressive route: quote before staking with btcli query quote-stake, dry-run the transaction, and cap slippage with add-stake-limit; subnet staking swaps TAO into that subnet\'s alpha token.',
+      'Claim root dividends with btcli root claim when worthwhile; per-validator payouts below 500,000 rao are skipped and keep accruing.',
+    ],
+    risks: ['Subnet staking converts principal into an illiquid alpha token at pool prices; it can fall against TAO', 'Lost coldkey seed means unrecoverable funds; there is no reset', 'Validator take and subnet emissions change; yesterday\'s best subnet is not today\'s'],
+  },
+  'bitfi-basis': {
+    status: 'points-live', safety: false,
+    verdict: 'Points live: BitFi runs the only batch-1 points programme documented as explicitly tied to a future token airdrop, scored by daily epoch snapshots.',
+    venue: 'app.bitfi.one (BNB Chain or Base for cheap gas)', capital: '$100+',
+    totalCost: 'About $1-$3 in BNB Chain or Base gas for the full quest path', totalTime: 'About 25 minutes to set up, then hold across daily snapshots',
+    steps: [
+      'Open the Points page in the BitFi app first: it, not the docs, defines the live quest list, multipliers and caps (about 5 minutes, $0).',
+      'Mint 100 bfUSD from USDT/USDC (quest: First Mint 100 bfUSD), then stake 100 bfUSD into Horizon or Pulsar (quest: First Stake), receiving hbfUSD or pbfUSD (gas under $1 per step).',
+      'Provide 100 bfUSD of Curve liquidity (quest: First Provide 100 bfUSD Curve Liquidity); LP tokens also count toward HODL points.',
+      'BTC route: deposit BTC assets (documented minimum stake 0.0001 BTC) to mint and hold bfBTC; no further staking is needed for HODL points.',
+      'Hold, do not churn: points settle on ~24h epoch snapshots, so keep every position in place across snapshots and meet the Boost holding conditions shown in-app.',
+    ],
+    risks: ['Yield comes from a CeFi desk (custody via Ceffu/MirrorX with Binance) running ~90% delta-neutral strategies', 'Quest values and caps change on the Points page without notice', 'Pulsar is the higher-yield, higher-risk tranche; Horizon is the stable one'],
+  },
+  'hyperithm': {
+    status: 'yield-only', safety: false,
+    verdict: 'No Hyperithm points programme documented; the farm is Morpho vault yield, mainly the USDC Apex family on Monad, plus Accountable delta-neutral vaults.',
+    venue: 'Morpho app (Monad/Ethereum), curator filter Hyperithm; Accountable for aHYPER', capital: '$1,000+',
+    totalCost: 'Monad gas is cents; Accountable aHYPER charges a 0.5% annual management fee', totalTime: 'About 20 minutes to set up, then 10 minutes a week',
+    steps: [
+      'In the Morpho app, filter curator = Hyperithm and open Hyperithm USDC Apex on Monad (Vault V2); approve and deposit USDC (gas in cents, about 5 minutes).',
+      'Read the allocation list before sizing: the Monad vault snapshot showed ~92.7% in the aHYPER market, so this is concentrated exposure, not a diversified vault.',
+      'Accountable route: subscribe USDC to aHYPER (documented 1,000 USDC minimum, 0.5% annual management fee, no stated lockup) for the delta-neutral fund share itself.',
+      'Check Merkl campaigns weekly (10 minutes) and exit in the Morpho app subject to market liquidity.',
+    ],
+    risks: ['Concentration: one market (aHYPER) dominates the flagship vault\'s allocations', 'Hyperithm\'s own site serves corporates and HNWIs; the retail surface is entirely third-party venues', 'Accountable positions are held off-chain, one named manager per vault'],
+  },
+  'onre': {
+    status: 'points-live', safety: false,
+    verdict: 'Points live: OnRe Points accrue daily at 1 pt per ONyc per day, 1x for holding up to 4x for Exponent YT positions, with campaign boosts reported to 10x.',
+    venue: 'app.onre.finance (Solana), plus Kamino and Exponent', capital: '$250+',
+    totalCost: 'Solana fees are cents end to end; budget about $1 total including a CEX withdrawal', totalTime: 'About 20 minutes to set up, then a weekly 5-minute check',
+    steps: [
+      'Fund a Solana wallet with USDC plus about 0.05 SOL for fees (about 10 minutes; withdrawal from an exchange is the cheap route).',
+      'In the OnRe app, deposit USDC/USDG and mint ONyc at NAV in one on-chain step; simply holding ONyc earns NAV yield plus 1x points.',
+      'Multiplier step: supply ONyc on Kamino\'s OnRe market (2x for LP, 3x for supplying as collateral at launch) or use Kamino Multiply loops with a conservative health factor.',
+      'Highest multiplier: on Exponent, split ONyc into PT/Yt tranches and hold YT-ONyc (4x at launch); YT can expire worthless, so size it as spend, not principal.',
+      'Track points daily in the OnRe app; points accrue by duration, so this is a hold farm, not a click farm.',
+    ],
+    risks: ['Exit at NAV is qualified-investor gated; most holders must plan a secondary-market exit', 'ONyc value rests on reinsurance premiums and one Bermuda-regulated issuer', 'Multiply loops add liquidation risk on top of issuer risk'],
+  },
+  'k3-capital': {
+    status: 'do-not-deposit', safety: true,
+    verdict: 'DO NOT DEPOSIT: K3\'s sBOLD vault was exploited for about $3.43M on 18 Nov 2026. Avoid K3 vaults until a post-mortem and remediation are published.',
+    venue: 'None until cleared — do not use k3-capital.net (unverified lookalike)', capital: 'Do not deposit',
+    totalCost: '$0 — the correct action is to deposit nothing', totalTime: '5 minutes to verify the flag before skipping',
+    steps: [
+      'Deposit nothing into any K3 Capital vault, including the sBOLD vault, until K3 publishes a post-mortem for the ~$3.43M exploit of 18 Nov 2026 (0 cost, 5 minutes to check).',
+      'Ignore the site at k3-capital.net: its generic aggregator content could not be verified as the DefiLlama-tracked curator\'s app, and it is not a safe deposit route.',
+      'If you already hold a K3 position, exit through the venue app (Morpho, Euler or Accountable) where the vault\'s curator field literally reads K3 Capital, subject to liquidity.',
+      'Re-check K3\'s official channels monthly (5 minutes, $0); only a published post-mortem plus resumed audits would lift this flag.',
+    ],
+    risks: ['A ~$3.43M vault exploit is unresolved in public sources', 'An unverified lookalike site presents itself as the K3 app', 'Most K3 TVL sits in one Accountable credit facility for a single borrower (Galaxy)'],
+  },
+  'hive-protocol': {
+    status: 'cash-rewards', safety: false,
+    verdict: 'No Hive points programme: rewards are liquid $B2 tokens (20% of supply allocated to Hive staking, released over 96 months) — a live-token yield, not a pre-token farm.',
+    venue: 'hive.bsquared.network (B2 Network)', capital: '$500+ (minimum stake 0.001 BTC)',
+    totalCost: 'One Bitcoin bridge transaction ($1-$5 at normal mempool fees) plus small B2 gas', totalTime: 'About 25 minutes to set up, then user-driven claims',
+    steps: [
+      'Hold BTC in a Bitcoin wallet (e.g. UniSat) and bridge it to B2 mainnet via the official B2 bridge (one mainnet transaction, $1-$5, about 15 minutes).',
+      'Open the Hive app, connect a wallet, enter the BTC amount (minimum 0.001 BTC) and stake; rewards accrue pro-rata per ~2-second block.',
+      'Claim or compound $B2 rewards in the Hive UI as they accrue; the claim cadence is yours to choose (gas is small on B2).',
+      'Exit: unstake in Hive (documented 24-hour unstaking period), then bridge BTC back out if you want mainnet BTC again.',
+    ],
+    risks: ['B2 is a young Bitcoin L2; bridge and sequencer risk sit under the whole position', '$B2 rewards are paid in a volatile live token, so the APY in dollars moves with its price', 'Babylon-side rewards for Hive stakers depend on Babylon\'s own staking going live and staying live'],
+  },
+  'opentrade': {
+    status: 'no-retail-farm', safety: false,
+    verdict: 'Insufficient public info for a retail farm: OpenTrade is B2B infrastructure with no points, no token and no public deposit app. Retail yield exists only inside partner apps.',
+    venue: 'Partner apps only (e.g. WOO X Earn); direct route is whitelisted and KYC/KYB-gated', capital: 'Partner minimums apply',
+    totalCost: '$0 to research; partner-app deposits carry no OpenTrade fee schedule (none is published)', totalTime: 'Direct onboarding takes 1-3 days; partner route about 15 minutes',
+    steps: [
+      'Do not look for an OpenTrade points programme: none exists, and anyone pitching OpenTrade points is inventing them (5 minutes, $0).',
+      'Retail route: in WOO X (after exchange KYC), open Earn and subscribe USDC to the RWA Flexible Term Vault, which is OpenTrade-backed T-bill yield on Avalanche rails (about 15 minutes).',
+      'Business route: apply for onboarding on OpenTrade\'s site, complete KYC/KYB (documented at 1-3 days), get a wallet whitelisted, then invest in the app at the vault exchange rate.',
+      'Exit the partner vault per that app\'s terms (WOO X advertised instant redemption); direct positions redeem per the vault\'s own term sheet.',
+    ],
+    risks: ['No published fee schedule, so the true cost of the direct route is unknowable in advance', 'Yield depends on Five Sigma-managed RWA accounts and the partner app\'s solvency', 'The boosted ~13.75% WOO X campaign ended in Jan 2025; do not count on it'],
+  },
+  'clearstar': {
+    status: 'yield-only', safety: false,
+    verdict: 'No Clearstar points programme documented; the farm is Morpho curator vault yield (cbAssets on Base is the flagship) plus any Merkl campaign.',
+    venue: 'Morpho app, curator filter Clearstar (Base/Ethereum/Flare)', capital: '$500+',
+    totalCost: 'Under $0.50 on Base; $2-$10 for Ethereum vaults, in and out', totalTime: 'About 20 minutes to set up, then 10 minutes a week',
+    steps: [
+      'In the Morpho app, filter curator = Clearstar and open Clearstar cbAssets Vault on Base (the largest, ~25.9M USDC at research time); approve and deposit (gas under $0.10).',
+      'Ethereum alternatives: Clearstar USDC Core for a diversified book, or USDC Reactor only if you accept its 18% performance fee and single-market concentration.',
+      'Read each vault\'s fee line before depositing: documented Clearstar performance fees range from 0% to 25% depending on the vault.',
+      'Check Merkl campaigns weekly (10 minutes) and exit in the Morpho app subject to live market liquidity.',
+    ],
+    risks: ['Fee dispersion is extreme (0-25% performance) between vaults under one brand', 'Reactor was concentrated in a single USDC/sUSN market at research time', 'Clearstar vaults lend against Reservoir assets (reUSD), adding that issuer\'s risk'],
+  },
+  'upshift': {
+    status: 'points-live', safety: false,
+    verdict: 'Points live: Upshift Season 2 pays 1x base on vault deposits, 5x while TVL is under $750M, up to 7.5-10x with partners and missions. No token announced.',
+    venue: 'app.upshift.finance (15 chains)', capital: '$250+',
+    totalCost: 'Gas is cents on most chains; Ethereum vaults budget $2-$10 in and out', totalTime: 'About 20 minutes to set up, then 10 minutes a week',
+    steps: [
+      'Open the Upshift app, connect a wallet on your vault\'s chain, and enter a referral code in the Points section first if you have one (about 5 minutes, $0).',
+      'Pick a Core-band vault for the base farm (e.g. Sentora USD on Ethereum or Upshift USDC); approve and deposit, receiving the ERC-4626 receipt token.',
+      'Hold the receipt token: Season 2 points accrue at 1x base, 5x while platform TVL stays under $750M, per the programme terms shown in-app.',
+      'Optionally chase partner or mission multipliers (up to 7.5-10x) only where the underlying vault risk is one you already accept.',
+      'Exit by redeeming in the app; Stellar vaults redeem instantly up to local balance, other chains follow their vaults\' liquidity.',
+    ],
+    risks: ['Some Upshift vaults are private; confirm yours is public before planning around it', 'Enhanced-band vaults (8%+ targets) reach that yield with materially riskier strategies', 'Points have no announced token or conversion; they may be worth nothing'],
+  },
+  'cian-yield-layer': {
+    status: 'points-unverified', safety: false,
+    verdict: 'Voyage Points are documented (deposit-based, scored on unleveraged value), but live accrual in Nov 2026 could not be verified from a CIAN page — test before sizing.',
+    venue: 'cian.app (Ethereum/Mantle) or Bybit Mantle Vault', capital: '$500+ on Ethereum; $100+ on Mantle',
+    totalCost: 'Ethereum deposit $1-$5 quiet, $5-$20 busy, with a two-phase exit costing the same again; Mantle routes cost cents', totalTime: 'About 20 minutes to set up, then passive holding',
+    steps: [
+      'Ethereum flagship: acquire stETH or wstETH, open the stETH Yield Layer in the CIAN app, read its FlowMap, then approve and deposit to receive ylstETH (gas $1-$20 by congestion).',
+      'Cheaper route: on Mantle, deposit USDT0/USDC into the stablecoin Yield Layer vaults and hold the receipt token (gas in cents, about 10 minutes).',
+      'Open the CIAN points portal with the same wallet and confirm deposits are actually accruing Voyage Points before adding size; points score the unleveraged deposit value.',
+      'Exit in the app and expect a two-phase redemption (request, then claim after the strategy unwinds); do not plan on an instant exit.',
+    ],
+    risks: ['The flagship vault is a recursive Aave staking loop: an stETH depeg or rate spike forces deleveraging', 'DefiLlama lists no audits for CIAN Yield Layer and no full public fee schedule exists', 'Two-phase redemptions can take days and queue in stress'],
+  },
+  'defi-saver-asset-management': {
+    status: 'no-retail-farm', safety: false,
+    verdict: 'Not a vault and not farmable: DeFi Saver is a position-management dashboard. Its DefiLlama TVL is users\' positions on Aave, Maker and others, never deposits into DeFi Saver.',
+    venue: 'app.defisaver.com — a management tool for positions held elsewhere', capital: 'n/a',
+    totalCost: '$0 to use the dashboard basics; automated actions cost 0.25-0.30% per action plus gas', totalTime: 'About 20 minutes to connect an existing position',
+    steps: [
+      'Deposit nothing into DeFi Saver: there is no vault token and no rewards programme, and its own FAQ says assets are never deposited on it (5 minutes, $0).',
+      'If you already run an Aave, Maker, Compound or Morpho position, connect it in the DeFi Saver app to manage it through its Smart Wallet (about 15 minutes, gas only).',
+      'Optionally enable automation (liquidation protection, auto-leverage) knowing each advanced action costs 0.25-0.30% plus gas, so tight triggers compound the drag.',
+      'Farm the underlying protocol directly instead: any points or yield belong to Aave, Maker or Morpho, not to DeFi Saver.',
+    ],
+    risks: ['Automation reduces but does not eliminate liquidation risk; keepers depend on gas and network conditions', 'Positions sit in DeFi Saver Smart Wallet contracts stacked on the underlying protocol\'s contracts', 'Its TVL fell ~42% in 30 days because users closed underlying positions — there is no vault to run on'],
+  },
+  'plume-vaults': {
+    status: 'points-ended', safety: false,
+    verdict: 'Points ended: Plume Nest Points Season 1 accrual ended 13 Mar 2026 and Plume Points Season 2 closed 31 Mar 2026. A deposit today earns Nest vault yield only.',
+    venue: 'app.nest.credit (Plume Network)', capital: '$100+',
+    totalCost: 'Plume gas is under $0.05 per transaction; bridging USDC in costs the source-chain fee ($0.01-$5)', totalTime: 'About 15 minutes to set up, then fully passive',
+    steps: [
+      'Bridge USDC to Plume and mint pUSD 1:1 at the Plume portal; hold a little PLUME for gas (about 10 minutes, source-chain fee applies).',
+      'In the Nest app, pick a vault by risk: nTBILL for T-bill exposure, nALPHA or nOPAL for higher RWA yield; deposit USDC/pUSD and receive the nTOKEN (gas under $0.05).',
+      'Hold the nTOKEN: yield accrues into its price automatically, with no claiming or restaking step for base yield.',
+      'Do not pay for composability loops (Rooster, Morpho, Pendle multipliers) as a points farm: those multipliers belonged to the ended Season 1.',
+      'Exit by requesting redemption in the app; settlement is typically 1-4 days, up to 90 days for nACRDX and monthly windows for some vaults.',
+    ],
+    risks: ['US persons and residents are excluded by the official terms', 'Credit vault NAVs are partly mark-to-model; reported smoothness is not market pricing', 'Redemption delays can extend beyond 4 days when underlying fund liquidity is thin'],
+  },
+  'symbiotic': {
+    status: 'points-live', safety: false,
+    verdict: 'Points live since June 2024 with no end date published — but Symbiotic has never announced a token, and its terms say points carry no monetary value. A long, speculative farm.',
+    venue: 'app.symbiotic.fi (Ethereum only)', capital: '$1,000+',
+    totalCost: 'About $4-$20 Ethereum gas across wrapping, deposit and the queued exit', totalTime: 'About 30 minutes to set up, then 5 minutes a week',
+    steps: [
+      'Acquire collateral on Ethereum: stake ETH on Lido to get stETH, then wrap to wstETH (two transactions, $2-$10 gas), or buy wstETH on a DEX.',
+      'In the Symbiotic app, pick a vault by collateral, curator and delegation status; collateral actively delegated to networks earns 2x the points of idle collateral.',
+      'Read the vault\'s slashing terms before depositing, then approve and deposit ($2-$10 gas); points accrue at up to 0.001 per hour per $1 delegated.',
+      'Alternative: deposit the same collateral through Mellow to hold a liquid LRT and stack Mellow points on top, accepting a third risk layer and queued withdrawals.',
+      'Monitor delegation status, caps and points weekly (5 minutes); exits run through the vault\'s withdrawal queue, not an instant redemption.',
+    ],
+    risks: ['Slashing may be active or pending per vault and network; read the terms, not the headline APY', 'TVL is down from a $2.70B peak to ~$218M, so vault caps and curator attention have shrunk', 'Two and a half years of points with no token announcement: the payoff may never exist'],
+  },
+  'r25': {
+    status: 'yield-only', safety: false,
+    verdict: 'No R25 points programme and no published fees: the farm is rcUSDp portfolio yield on Sui (plus chain incentives) or curated RWA vaults on Pharos. Mint and redeem are KYC-gated.',
+    venue: 'R25 app (Sui for rcUSD; Pharos for curated vaults)', capital: '$250+',
+    totalCost: 'Sui and Pharos gas are cents; the real cost is the KYC gate and redemption timelines', totalTime: 'About 30 minutes including eligibility checks, then passive',
+    steps: [
+      'Choose a lane first: Sui (rcUSD/rcUSDp) or Pharos (curated vaults) — they use different wallets and assets (5 minutes, $0).',
+      'Sui lane: complete the app\'s eligibility/KYC, then mint rcUSD at $1 with USDC in the R25 app (gas in cents, about 10 minutes).',
+      'Stake rcUSD to receive rcUSDp and hold it; portfolio yield plus Sui chain incentives accrue to the position.',
+      'Pharos lane: deposit USDC into a curated vault such as pRNH (indicated ~7% target); some partner vaults lock deposits for 3 months with redemptions up to 20 days more.',
+      'Exit by unstaking and redeeming rcUSD as an eligible holder; redemption requires KYC and token delivery per the purchase agreement.',
+    ],
+    risks: ['rcUSD is unsecured in structure and its issuer publishes no fee schedule', 'KYC gating means redemption is a permission, not a contract guarantee', 'Pharos partner vaults can lock capital for months'],
+  },
+  'galaxy-curation': {
+    status: 'no-retail-farm', safety: false,
+    verdict: 'Institution-first: Galaxy\'s curation is distributed through Fireblocks Earn to 2,400+ institutional clients. Its Morpho vaults are permissionless but unsupported for retail; treat public info as partial.',
+    venue: 'Fireblocks Earn (institutions); Morpho app for the permissionless vaults', capital: 'Institutional scale via Fireblocks',
+    totalCost: '$0 to research; direct Morpho deposits cost normal Ethereum gas ($2-$10)', totalTime: 'About 15 minutes to inspect the public vaults',
+    steps: [
+      'Do not expect a Galaxy retail app: the official venue is Fireblocks Earn inside an institutional custody workflow (5 minutes to confirm, $0).',
+      'If proceeding unsupported: in the Morpho app open Galaxy USDC Quality or Galaxy USDC Enhanced on Ethereum and read allocations and fees on the vault page first (about 10 minutes).',
+      'Approve and deposit USDC ($1-$5 gas) and hold the share token (Quality\'s is gUSDCq); a pinned review found 0% performance and management fees, but verify live.',
+      'Exit in the Morpho app subject to market liquidity; Galaxy offers retail depositors no support channel for these vaults.',
+    ],
+    risks: ['Retail use of the public vaults is explicitly not the product; documentation is written for institutions', 'The Arc deployment was allocated to a single cirBTC/USDC market at review time', 'Fee and allocation facts come from point-in-time pinned reviews and can change'],
+  },
+  'lightning-network': {
+    status: 'cash-rewards', safety: false,
+    verdict: 'No token, no points, no airdrop — by design, forever. Income is sats-denominated: routing fees and liquidity-lease premiums (Amboss cites 1-4% APY over four years).',
+    venue: 'Your own Lightning node (LND/Core Lightning), Amboss Magma and Lightning Pool', capital: '$500+ in BTC (channels under ~1M sats rarely route)',
+    totalCost: 'One on-chain fee per channel opened ($1-$5 each); inbound liquidity on Magma starts at a $5 minimum purchase', totalTime: 'Half a day to set up a node properly, then ongoing channel management',
+    steps: [
+      'Install LND or Core Lightning on an always-on machine (home node or VPS) and fund its on-chain wallet with BTC (about 2-4 hours, plus the funding transaction fee).',
+      'Open channels of at least ~1M sats to well-connected peers, paying one on-chain fee per channel ($1-$5 each at normal mempool rates).',
+      'Get inbound liquidity: swap out via Loop or buy inbound on Amboss Magma (one-off purchases from $5, settled after 3 confirmations; Amboss never takes custody).',
+      'Sell liquidity: list spare capacity on Magma, or run Lightning Pool ask orders to lease outbound liquidity in its batched auctions (classic term 2,016 blocks, about 2 weeks).',
+      'Collect routing fees and lease premiums in sats as they accrue; rebalance channels when they drain one-sided (each rebalance has an on-chain or swap cost).',
+    ],
+    risks: ['A routing node is a hot wallet: the BTC sits on an internet-connected machine', 'Routing income is competitive and can be near zero for small, poorly connected nodes', 'Any site promising Lightning points or a Lightning token is a third-party promotion or a scam'],
+  },
+  'armitage-by-wintermute': {
+    status: 'yield-only', safety: false,
+    verdict: 'No Armitage points, leaderboard or token documented; the farm is Morpho lending yield only (Prime targets 4-5%, Select 5-8%, both at 0% curator fees).',
+    venue: 'Morpho app (Ethereum), curator filter Armitage', capital: '$1,000-$2,500',
+    totalCost: 'About $4-$15 Ethereum gas in and out; 0% curator fees on the Prime and Select vaults', totalTime: 'About 20 minutes to set up, then 10 minutes a week',
+    steps: [
+      'In the Morpho app, filter curator = Armitage and choose deliberately: Prime (0% fees, 4-5% target) or Select (5-8% target, but it lends against Wintermute\'s own wrapped unsecured Wildcat debt).',
+      'Approve and deposit USDC or USDT on Ethereum ($2-$15 gas at spike budgeting, about 5 minutes); hold the vault share token.',
+      'Check Merkl via Morpho weekly (10 minutes) for any generic campaign attached to your specific vault; claim if one appears.',
+      'Exit in the Morpho app subject to market liquidity; there is no lockup, but utilisation decides how much is instantly redeemable.',
+    ],
+    risks: ['Select\'s collateral includes Wintermute\'s own wrapped unsecured debt — a documented conflict of interest', 'Pendle Ecosystem vaults in the same family charge 5-10% performance fees, unlike Prime/Select', 'No points means no speculative upside: the yield is the whole return'],
+  },
+  'saturn': {
+    status: 'points-live', safety: false,
+    verdict: 'Points live: Orbital Points pay 5x for holding USDat, 25x on Curve LPs and 30x on Pendle YT-USDat. Correction: Saturn is backed by tokenised Treasuries plus Strategy STRC credit — it is NOT Ethena-backed.',
+    venue: 'app.saturn.credit (Ethereum)', capital: '$500+',
+    totalCost: 'About $4-$15 Ethereum gas across the swap, staking and any Pendle or Curve leg', totalTime: 'About 25 minutes to set up, then hold to the Season 2 snapshot',
+    steps: [
+      'Hold USDC on Ethereum, open the Saturn app and swap USDC to USDat at 1:1 (about 5 minutes, $1-$5 gas).',
+      'Decide the trade-off explicitly: hold USDat for 5x points and no yield, or stake to sUSDat for ~12% pool yield at only 1x points (one more transaction).',
+      'Multiplier routes: provide Curve USDC/USDat or USDC/sUSDat liquidity (25x) or buy Pendle YT-USDat (30x, matures 14 Jan 2027; YT can expire worthless).',
+      'Check the live multiplier table in the app before deploying: published figures differ between doc versions (25x vs 20x/18x for Curve).',
+      'Keep positions in place until the Season 2 snapshot; points accrue continuously on held and deployed balances.',
+    ],
+    risks: ['sUSDat yield comes from Strategy (MicroStrategy) STRC preferred-stock credit, and its price can fall', 'Registration windows and eligible regions have applied to Saturn seasons; late or ineligible wallets earn nothing', 'YT-USDat at 30x is the highest multiplier and the only leg that can go to zero by design'],
+  },
+  'tori-finance': {
+    status: 'points-live', safety: false,
+    verdict: 'Points live: Tori Cores accrue on trUSD balances (25x holding, 35x in the Ecosystem Vault per trackers). Correction: the token is trUSD and the engine is mostly off-chain money-market carry, not on-chain perp basis.',
+    venue: 'app.tori.finance (Ethereum)', capital: '$500+',
+    totalCost: 'About $4-$15 Ethereum gas across swap, stake and exit; Tori takes a 10% performance fee inside the strUSD rate', totalTime: 'About 20 minutes to set up, then passive',
+    steps: [
+      'Hold USDC or USDT on Ethereum, open the Tori app and swap into trUSD at 1:1 (no verification needed for the swap route; direct minting is KYC-only at 0.1%).',
+      'Hold trUSD to accrue Cores automatically, or stake trUSD to strUSD on the Earn page to earn strategy yield (~10% APY at research time) and keep accruing Cores.',
+      'Optional boost: deposit into the Ecosystem Vault (etrUSD, curated with RockawayX on Upshift infrastructure) for the higher documented Cores multiplier.',
+      'Never deposit into a YT Lock position expecting an exit: those positions are documented as never withdrawable.',
+      'Exit by unstaking strUSD and swapping trUSD back to USDC/USDT in the app (gas $2-$10); staking itself is instant and free.',
+    ],
+    risks: ['The carry engine runs off-chain through Tori\'s trading desk; you cannot inspect the book', 'The exact retained-income fee split is only partially disclosed in public sources', 'YT Lock positions cannot be withdrawn — treat any deposit there as permanent'],
+  },
+};
 
-export const RESEARCHED_PLANS: ResearchedPlan[] = [
-  {
-    slug: 'steakhouse-financial',
-    status: 'yield-only',
-    status_label: 'Yield only - no points',
-    points: 'No points programme and no Steakhouse token are documented. The farm is native lending yield, plus any Merkl campaign rewards the Morpho app shows for the vault.',
-    venue: 'Morpho app on Base: Steakhouse Prime USDC (steakUSDC) or Steakhouse High Yield USDC',
-    min_capital: '$500-$1,000 (Base gas is under $0.10, so the position size is the only real cost driver)',
-    steps: [
-      'Set up a dedicated farming wallet, write its seed phrase on paper and keep it offline; fund it with USDC on Base only. Cost: $0 plus under $0.10 of gas to move funds. Time: 15 minutes, once.',
-      'In the Morpho app, filter vaults by curator Steakhouse Financial and deposit $500-$1,000 of USDC into Steakhouse Prime USDC (steakUSDC); snapshot APYs for the Prime and High Yield vaults ran about 2.6-4.2%. Cost: the deposit, gas under $0.10. Time: 10 minutes.',
-      'Hold the steakUSDC shares untouched so the position accrues native yield continuously; do not chase the Term or Turbo variants, which are different products with different risk. Cost: $0. Time: ongoing, check monthly.',
-      'Once a month, open the Merkl campaign page linked from the Morpho app and claim any campaign rewards the vault is distributing; Steakhouse runs no points programme of its own, so venue campaigns are the only extra. Cost: $0 to check. Time: 10 minutes a month.',
-      'Keep a farm log (wallet, vault, dates, amounts) and set the exit rule now: withdraw through the Morpho app, and allow for withdrawal liquidity - the vault targets about 90% utilisation, so a full exit can queue when borrow demand is high. Cost: $0. Time: 15 minutes.',
-    ],
-    risks: [
-      'No points programme: returns are yield only, there is no airdrop to qualify for',
-      'Withdrawal liquidity: the vault targets ~90% utilisation, so exits can queue',
-      'Bad debt is socialised through the vault share price',
-      'Term and Turbo variants carry different risk from the Prime vault',
-    ],
-  },
-  {
-    slug: 'sentora-curator',
-    status: 'yield-only',
-    status_label: 'Yield only - no points',
-    points: 'No points programme and no Sentora token are documented. The farm is native yield on the PYUSD and RLUSD vaults Sentora curates on Morpho.',
-    venue: 'Morpho app on Ethereum: Sentora PayPal USD Main or Sentora RLUSD Main vaults',
-    min_capital: '$1,000-$2,500 (the position must first be converted into PYUSD or RLUSD, so allow for two conversion legs)',
-    steps: [
-      'Set up a dedicated farming wallet, seed phrase on paper, offline. Fund it on Ethereum with USDC. Cost: $0 plus Ethereum gas. Time: 15 minutes, once.',
-      'Convert $1,000-$2,500 of USDC into PYUSD or RLUSD through a major exchange or DEX; Sentora curates vaults for those two stablecoins, not for USDC directly, so this conversion leg is part of the farm. Cost: swap fees plus gas. Time: 20 minutes.',
-      'In the Morpho app, deposit into Sentora PYUSD Main (about 5.15% APY at research snapshots) or Sentora RLUSD Main (about 6.15%); Sentora is the IntoTheBlock and Trident risk teams merged, and curation is the product. Cost: the deposit plus gas. Time: 10 minutes.',
-      'Hold the vault shares and let the yield accrue; re-check the vault allocation monthly in the Morpho app, because only about a quarter of the main vaults was liquid at research time. Cost: $0. Time: 10 minutes a month.',
-      'Plan the exit before entering: convert back through the same two legs (vault withdrawal, then PYUSD/RLUSD back to USDC), and expect the withdrawal leg to be slow when the vault is heavily lent out. Cost: swap fees plus gas. Time: 30 minutes when you exit.',
-    ],
-    risks: [
-      'No points programme: returns are yield only',
-      'Only ~25% of the main vaults was liquid at research time - exits can be slow',
-      'Two conversion legs (USDC to PYUSD/RLUSD and back) add cost and slippage',
-      'Ethereum mainnet gas applies to every step',
-    ],
-  },
-  {
-    slug: 'gauntlet',
-    status: 'yield-only',
-    status_label: 'Yield only + one venue campaign',
-    points: 'No points programme and no Gauntlet token are documented. The only points-like extra is a venue campaign: OKX Wallet ran a $350K X Layer campaign paying a bonus APR for supplying USDC to the Gauntlet vault there.',
-    venue: 'Morpho app on Base: Gauntlet USDC Prime (gtUSDCp); optional OKX Wallet campaign on X Layer',
-    min_capital: '$500-$1,000 on Base; the X Layer campaign leg works at similar size',
-    steps: [
-      'Set up a dedicated farming wallet, seed phrase on paper, offline; fund it with USDC on Base. Cost: $0 plus under $0.10 of gas. Time: 15 minutes, once.',
-      'In the Morpho app, deposit $500-$1,000 of USDC into Gauntlet USDC Prime on Base (about 4.16% APY at research snapshots) and hold the gtUSDCp shares. Cost: the deposit, gas under $0.10. Time: 10 minutes.',
-      'Optional campaign leg: in OKX Wallet, supply USDC to the Gauntlet vault on X Layer to earn the campaign bonus (up to 3% bonus APR from a $100K pool for that vault, inside a $350K campaign). Check the campaign is still live in the wallet before moving funds. Cost: bridge and gas fees. Time: 20 minutes.',
-      'Skip the Gauntlet Frontier vault unless you deliberately want riskier collateral for a higher rate; Prime is the conservative product and the one this plan prices. Cost: $0. Time: 5 minutes to check which vault you are in.',
-      'Hold for at least a full quarter so the yield compounds, and log the position (wallet, vault, chain, amounts); exit through the Morpho app, noting some Gauntlet V1 vault supply queues were partly shut in November 2026 - use the current vaults the app lists. Cost: $0. Time: 15 minutes to log.',
-    ],
-    risks: [
-      'No Gauntlet points programme or token: the base farm is yield only',
-      'The OKX campaign is a venue promotion with an end date, not a protocol programme',
-      'Frontier vaults lend against riskier collateral than Prime',
-      'Some V1 vault supply queues were partly shut in November 2026',
-    ],
-  },
-  {
-    slug: 'usdd',
-    status: 'already-trading',
-    status_label: 'Not a launch - token already live',
-    points: 'Correction: USDD is not a pre-token protocol. USDD is itself the live $1 stablecoin (TRON DAO Reserve); there is no governance token and no airdrop to farm. The only play is stablecoin yield.',
-    venue: 'USDD Earn (sUSDD) on TRON, entered through the USDD PSM swap',
-    min_capital: '$250-$500 (yield at ~4% needs size to matter after fees)',
-    steps: [
-      'Do not farm USDD for a launch: there is none. USDD already trades as a $1 stablecoin, its snapshot record simply carries no market-cap field. Treat this entry as a yield position only, or skip it entirely. Cost: $0. Time: 5 minutes to decide.',
-      'If you want the yield: swap USDT or USDC into USDD 1:1 through the USDD PSM, so no premium is paid for the token. Cost: the swap amount plus TRON fees. Time: 15 minutes.',
-      'Deposit the USDD into USDD Earn to hold sUSDD at about 4% base APY at research time (the rate has stepped down: 20% in Jan 2025, 5% in Feb 2026, ~4% since). Cost: $0 beyond the deposit. Time: 10 minutes.',
-      'Never mint USDD through a collateral vault to farm the Earn rate: vault minting costs about 4.25-5% while Earn pays about 4%, so that loop is net-negative by construction. Cost of ignoring this warning: a guaranteed small loss. Time: 0 minutes.',
-      'Exit by redeeming sUSDD back to USDD and swapping out through the PSM; keep the position sized as cash, not as an airdrop farm, in your log. Cost: TRON fees. Time: 15 minutes.',
-    ],
-    risks: [
-      'No token launch or airdrop exists for this entry - implied value is a snapshot artefact',
-      'Earn APY has fallen steadily (20% to ~4%) and can fall further',
-      'Minting USDD at 4.25-5% to earn 4% in Earn is net-negative',
-      'Stablecoin and TRON-ecosystem risk sits with the holder throughout',
-    ],
-  },
-  {
-    slug: 'veda',
-    status: 'yield-only',
-    status_label: 'Yield via partners - points are historical',
-    points: 'Veda Points existed in 2024-25 seasons, but no live Veda-run season and no Veda token were documented as of the 13 Nov 2026 research. Veda is vault infrastructure (BoringVault); farming happens in partner front-ends.',
-    venue: 'Partner apps built on Veda vaults: ether.fi Liquid, Lombard DeFi Vault, Kraken DeFi Earn',
-    min_capital: '$250-$1,000 depending on the partner vault',
-    steps: [
-      'Do not look for a Veda app or a Veda points page: Veda is infrastructure and runs no consumer front-end. Choose a partner product instead - ether.fi Liquid (liquidUSD/ETH/BTC), the Lombard DeFi Vault (LBTCv), or Kraken DeFi Earn. Cost: $0. Time: 15 minutes to choose.',
-      'Set up a dedicated wallet (seed phrase on paper, offline) or a Kraken account for the Earn route, and fund it with the asset the chosen vault takes. Cost: $0 plus chain gas. Time: 15 minutes.',
-      'Deposit $250-$1,000 into the chosen partner vault and hold the receipt token (for example LBTCv, which carries a 1.5% management fee). The yield is real; any points come from the partner programme, not from Veda. Cost: the deposit plus gas. Time: 10 minutes.',
-      'Calendar the withdrawal terms before depositing: partner vault queues run up to 3-7 days, so this is not same-day money. Cost: $0. Time: 5 minutes.',
-      'Log the position under the partner protocol, not under Veda, and exit through the same partner app; if a partner announces its own points season, that programme - not Veda - is what your activity counts toward. Cost: $0. Time: 10 minutes a month to check.',
-    ],
-    risks: [
-      'Veda Points are historical (2024-25); no live Veda season or token is documented',
-      'Withdrawal queues on partner vaults run up to 3-7 days',
-      'ether.fi Liquid is not available to US residents',
-      'Lombard DeFi Vault charges a 1.5% management fee',
-    ],
-  },
-  {
-    slug: 'nonce-capital',
-    status: 'no-retail-farm',
-    status_label: 'No retail farm - service provider only',
-    points: 'No points programme and no Nonce token are documented, and no verifiable Nonce-curated Morpho vault could be found. Nonce is a service provider (strategy for ether.fi Liquid, risk admin for ether.fi Cash on Aave V4), not a farmable product.',
-    venue: 'None directly. The only indirect route is ether.fi Liquid, which belongs to the Veda entry, not to Nonce',
-    min_capital: 'None - there is no Nonce position to size',
-    steps: [
-      'Do not deposit anywhere "for Nonce Capital": the research could not verify a single Nonce-curated vault a retail wallet can enter, and no points or token exist to earn. Any site selling a Nonce farm is inventing it. Cost: $0. Time: 5 minutes.',
-      'Understand what Nonce actually is before skipping: a strategy provider inside ether.fi Liquid vaults and the risk administrator for ether.fi Cash on Aave V4. Those are service contracts, not user products. Cost: $0. Time: 10 minutes of reading.',
-      'If the underlying exposure is what you want, run the ether.fi Liquid plan from the Veda entry instead and log it as an ether.fi position; do not record it as farming Nonce. Cost: as priced in the Veda plan. Time: as in the Veda plan.',
-      'Re-check once a quarter whether Nonce has launched a public vault or programme; until its own documentation names one, this entry stays a no-farm. Cost: $0. Time: 10 minutes a quarter.',
-    ],
-    risks: [
-      'Insufficient public information: no verifiable retail product exists',
-      'Third parties may invent "Nonce vaults" - none is verified',
-      'Service-provider revenue does not accrue to depositors anywhere else',
-    ],
-  },
-  {
-    slug: 'polymarket-international',
-    status: 'cash-rewards',
-    status_label: 'Cash rewards - no points, no token drop documented',
-    points: 'No points programme and no documented POLY airdrop allocation. All rewards are cash in pUSD: Liquidity Rewards for two-sided quotes, Maker Rebates at high volume, and 3.25%/yr Holding Rewards on eligible long-dated markets.',
-    venue: 'Polymarket International: limit-order book markets and long-dated position markets',
-    min_capital: '$500-$1,000 of working capital for two-sided quoting (rewards need resting size inside the max spread)',
-    steps: [
-      'First check you may legally use the venue: 33 countries are close-only (including the US, UK, France, Germany and Singapore). Indonesia was not on the blocked or close-only lists the research consulted, but that is not a legality opinion - verify for yourself before funding. Cost: $0. Time: 15 minutes.',
-      'Fund a dedicated account with $500-$1,000 and pick one liquid market with an active Liquidity Rewards programme; rewards require two-sided resting limit orders inside the maximum spread and at or above the minimum size. Cost: the working capital. Time: 30 minutes to set up.',
-      'Keep both quotes resting and re-centre them as the market moves; rewards are sampled every minute and paid daily in pUSD with a $1 minimum payout, so uptime matters more than trade count. Cost: $0 beyond capital at risk. Time: 20 minutes a day.',
-      'Add a small long-dated position only if you actually hold a view: eligible long-dated markets pay 3.25%/yr Holding Rewards, which is a supplement, not a reason to buy. Maker Rebates are not a starter farm - tiers begin at $200K of 30-day maker volume. Cost: position size. Time: 15 minutes.',
-      'Log every market, quote size and reward payout weekly; exit by cancelling quotes and withdrawing pUSD. If a POLY token is ever formally announced, this log is your evidence - until then, price this farm as cash yield only. Cost: $0. Time: 15 minutes a week.',
-    ],
-    risks: [
-      'Geo restrictions are the top risk: 33 countries are close-only; verify your own eligibility',
-      'No POLY airdrop is documented - rewards are cash (pUSD), not a token claim',
-      'Two-sided quoting carries inventory risk when a market moves fast',
-      'Maker Rebate tiers start at $200K 30-day volume - out of starter reach',
-    ],
-  },
-  {
-    slug: 'rockawayx',
-    status: 'yield-only',
-    status_label: 'Yield only - no points',
-    points: 'No points programme, token or airdrop is documented for RockawayX. The farm is curated lending yield on Morpho (Ethereum) or the RockawayX RWA Vault on Kamino (Solana).',
-    venue: 'Morpho app on Ethereum (RockawayX USDC vaults) or Kamino on Solana (RockawayX RWA Vault)',
-    min_capital: '$1,000+ on Ethereum (gas), or $100-$500 on the Kamino route',
-    steps: [
-      'Set up a dedicated farming wallet, seed phrase on paper, offline. Pick the chain first: Ethereum for the Morpho vaults, Solana for the cheaper Kamino route. Cost: $0. Time: 15 minutes, once.',
-      'Ethereum route: in the Morpho app, deposit $1,000+ of USDC into a RockawayX vault - USDC Prime for the conservative book, or USDC Yield (about 6.41% APY at research snapshots, roxUSDCy) for the higher rate. Cost: the deposit plus Ethereum gas. Time: 10 minutes.',
-      'Solana route: deposit $100-$500 of USDC into the RockawayX RWA Vault on Kamino (about 4.8% at research snapshots) through the Kamino app. Cost: the deposit plus minimal Solana fees. Time: 10 minutes.',
-      'Hold the vault shares for at least a quarter and re-check the curator allocation monthly in the app; there are no points to chase, so the only decision is whether the yield still pays for the risk. Cost: $0. Time: 10 minutes a month.',
-      'Exit through the same app you entered with and log the realised yield; if RockawayX ever documents a programme, this position history is already in place. Cost: gas or Solana fees. Time: 15 minutes.',
-    ],
-    risks: [
-      'No points or token: returns are yield only',
-      'Ethereum gas makes small positions uneconomic on the Morpho route',
-      'RWA vault yield depends on off-chain borrowers the holder cannot audit',
-    ],
-  },
-  {
-    slug: 'bittensor-dtao',
-    status: 'already-trading',
-    status_label: 'Correction - TAO already trades',
-    points: 'Correction: Bittensor is not pre-token. TAO already trades (about $185 and a ~$2.16B market cap at research time); there are no points and no airdrop. The only play is native TAO staking yield.',
-    venue: 'Bittensor native staking via btcli with a coldkey wallet (root network or subnets)',
-    min_capital: 'About 1 TAO to make staking worthwhile after fees',
-    steps: [
-      'Do not farm Bittensor for a launch: TAO has traded for years, and this board row exists only because the snapshot record carries no market-cap field. There is no airdrop at the end of any Bittensor activity. Cost: $0. Time: 5 minutes to decide.',
-      'If you want TAO exposure itself, buy TAO on a major exchange and move it to a btcli coldkey wallet you control; never stake through a site that asks for your seed phrase. Cost: the TAO purchase plus transfer fees. Time: 30 minutes.',
-      'Conservative route: root staking on netuid 0. Your principal stays in TAO and earns about 5% APY at research snapshots - the near-passive option. Cost: $0 beyond the stake. Time: 15 minutes to delegate.',
-      'Speculative route, only with money you can lose: subnet staking swaps your TAO into a subnet alpha token. Alpha is volatile and an unstake can return LESS TAO than you put in; validators take a cut (default 18%). Cost: potential principal loss in TAO terms. Time: 1 hour to research a subnet first.',
-      'Log the stake (netuid, validator, amount, date) and review quarterly; unstaking from subnets is a swap back to TAO, so time exits rather than assuming par. Cost: $0. Time: 15 minutes a quarter.',
-    ],
-    risks: [
-      'No airdrop or points exist - this is a staking yield play on a live token',
-      'Subnet alpha tokens are volatile; unstaking can return less TAO than staked',
-      'Validator take defaults to 18% of emissions on subnets',
-      'TAO price risk applies to the whole position',
-    ],
-  },
-  {
-    slug: 'bitfi-basis',
-    status: 'points-live',
-    status_label: 'Points live - airdrop stated in docs',
-    points: 'BitFi Points are live, and BitFi documentation states a future token airdrop will be distributed based on total points - the clearest documented points-to-airdrop link in this batch.',
-    venue: 'BitFi app: bfUSD quests (mint, stake, Curve LP) and bfBTC HODL points',
-    min_capital: '$100 scale per quest line (quests are sized at 100 bfUSD); bfBTC in clean 0.0001 BTC increments',
-    steps: [
-      'Set up a dedicated wallet, seed phrase on paper, offline, and read the BitFi points documentation first: it states the future token airdrop is distributed by total points, which is the whole reason to run this farm. Cost: $0. Time: 20 minutes.',
-      'Complete the bfUSD starter quests at their designed $100 scale: first mint of 100 bfUSD, first stake of 100 bfUSD into Horizon or Pulsar, and a first 100 bfUSD Curve LP position. Each is a one-time quest, so do them once, properly. Cost: about $300 of rotating capital plus gas. Time: 45 minutes.',
-      'For the bfBTC line, deposit BTC in clean 0.0001 BTC increments only: HODL points pay 10 points per 0.0001 bfBTC per ~24h epoch on whole increments, so a ragged amount silently wastes the remainder. Cost: the BTC deposited. Time: 15 minutes.',
-      'Check the points balance weekly and keep every position open; points accrue per epoch while the assets stay put, so churn costs points rather than earning them. Cost: $0. Time: 10 minutes a week.',
-      'Log every quest, epoch balance and fee you actually paid (BitFi does not publish its fee schedule, so your own log is the only record). Exit rule: if the custody or audit picture worsens, withdraw first and ask questions later. Cost: $0. Time: 15 minutes to set up the log.',
-    ],
-    risks: [
-      'CeFi desk and custody risk: assets sit with a centralised desk (Ceffu custody)',
-      'DefiLlama lists 0 audits for BitFi',
-      'Fees are unpublished - true net yield is hard to verify',
-      'bfUSD has been seen trading near $0.986, under its $1 target',
-    ],
-  },
-  {
-    slug: 'hyperithm',
-    status: 'yield-only',
-    status_label: 'Yield only - no points (not Hyperbeat)',
-    points: 'No Hyperithm points programme exists - do not confuse Hyperithm with Hyperbeat, a different protocol that does run one. The farm is curator yield on Morpho (Monad) or Accountable, plus venue incentives such as WMON via Merkl when they appear.',
-    venue: 'Morpho on Monad: Hyperithm USDC Apex (hyperUSDCa); or Accountable aHYPER directly',
-    min_capital: '$250-$500 on Morpho; $1,000 minimum for the Accountable aHYPER route',
-    steps: [
-      'Set up a dedicated farming wallet, seed phrase on paper, offline; fund it with USDC on Monad for the Morpho route. Cost: $0 plus gas. Time: 15 minutes, once.',
-      'In the Morpho app, deposit $250-$500 of USDC into Hyperithm USDC Apex. Read the allocation first: about 92.7% of it lent against aHYPER at research time, so this vault is largely a loan against Hyperithm\'s own token - size it as such. Cost: the deposit plus gas. Time: 15 minutes.',
-      'Alternative route: deposit at least $1,000 into aHYPER through Accountable directly (0.5% management fee) if you prefer holding the asset to lending against it. Cost: the deposit plus the fee drag. Time: 15 minutes.',
-      'Once a month, check Merkl for WMON or other venue incentives attached to the vault and claim what is live; venue incentives are the only extra - there is no Hyperithm points balance to grow. Cost: $0 to check. Time: 10 minutes a month.',
-      'Hold for at least a quarter, log the position and the vault allocation share each month, and exit through Morpho if the aHYPER concentration rises further. Cost: gas. Time: 15 minutes a month.',
-    ],
-    risks: [
-      'Self-referential concentration: ~92.7% of the Apex vault lent against aHYPER at research time',
-      'No points programme - venue incentives only, and they come and go',
-      'Accountable route charges a 0.5% management fee with a $1,000 minimum',
-      'Monad is a young chain; bridge and liquidity risk apply',
-    ],
-  },
-  {
-    slug: 'onre',
-    status: 'points-live',
-    status_label: 'Points live - token NOT confirmed',
-    points: 'OnRe Points accrue daily: 1 point per ONyc per day held (1x), 2x for LP positions, 3x for lending/borrowing on Kamino, 4x for YT-ONyc on Exponent. Honesty flag: OnRe has NOT confirmed a token or airdrop, and the points carry no stated cash value.',
-    venue: 'Solana: hold ONyc, or LP on Kamino/Orca/Raydium, lend on Kamino, or YT-ONyc on Exponent',
-    min_capital: '$100-$500 of ONyc (points are per-dollar per-day, so size and duration both count)',
-    steps: [
-      'Set up a dedicated Solana wallet, seed phrase on paper, offline; fund it with USDC on Solana. Cost: $0 plus minimal Solana fees. Time: 15 minutes, once.',
-      'Buy $100-$500 of ONyc, the yield-bearing dollar backed by reinsurance premiums, and simply hold it: holding earns 1 point per ONyc per day at 1x while the asset itself yields. Cost: the ONyc purchase. Time: 15 minutes.',
-      'To multiply points, choose ONE boosted route and understand it first: LP ONyc on Kamino, Orca or Raydium for 2x, lend or borrow against it on Kamino for 3x, or buy YT-ONyc on Exponent for 4x (yield tokens decay to zero at expiry - the 4x is not free). Cost: position fees. Time: 30 minutes.',
-      'Check the in-app campaign multipliers before sizing up: campaign boosts above the base 1x-4x have been reported, but only the app\'s current figures count. Cost: $0. Time: 10 minutes a week.',
-      'Plan the exit through the secondary market (DEX liquidity), not direct redemption: redeeming ONyc at NAV is gated to qualified investors with KYC, which most retail farmers cannot use. Log points and balances weekly. Cost: swap fees. Time: 15 minutes a week.',
-    ],
-    risks: [
-      'OnRe has NOT confirmed a token or airdrop; points have no stated cash value',
-      'Direct redemption at NAV is qualified-investor and KYC gated - retail exit is the secondary market',
-      'YT-ONyc decays to zero at expiry; the 4x multiplier carries real cost',
-      'ONyc value rests on reinsurance underwriting, an off-chain risk',
-    ],
-  },
-  {
-    slug: 'k3-capital',
-    status: 'do-not-deposit',
-    status_label: 'SAFETY FLAG - sBOLD exploited, alternatives only',
-    points: 'No K3 points programme or token is documented. Safety first: K3\'s sBOLD vault was exploited for about $3.42-3.43M on 18 Nov 2026 and is paused; Liquity told users not to deposit. This plan routes around K3\'s own vaults entirely.',
-    venue: 'NOT sBOLD. Alternatives: K3 cbMaxxxing USDC on Morpho (Base), K3 USDC Vault V2 on HyperEVM',
-    min_capital: '$250-$500 for the Morpho Base alternative',
-    steps: [
-      'STOP - do not deposit into K3 Capital\'s sBOLD vault or any K3 epoch-staged vault: sBOLD was exploited for roughly $3.42-3.43M on 18 Nov 2026, the vault is paused, and Liquity instructed users not to deposit. The k3-capital.net site and its epoch vaults are also unverified - K3\'s identity there is not confirmed. Cost: $0. Time: 5 minutes.',
-      'If you already hold sBOLD or a K3 vault position, follow only Liquity\'s and K3\'s official channels for withdrawal instructions; never follow a "recovery" link from social media or a DM. Cost: $0. Time: 30 minutes to verify channels.',
-      'Retail-cleanest alternative: in the Morpho app on Base, deposit $250-$500 of USDC into K3 cbMaxxxing USDC, a plain curated lending vault unrelated to the exploited sBOLD product. Cost: the deposit plus Base gas under $0.10. Time: 10 minutes.',
-      'Smaller alternative: K3 USDC Vault V2 on HyperEVM (5% performance fee, only about $1.2M in size at research time) - treat the small size itself as a risk and keep any position minor. Cost: the deposit plus gas. Time: 10 minutes.',
-      'Avoid the Galaxy AUSD vault on Accountable as a K3 route unless you accept single-borrower credit with redemptions capped at 30% a month on 90-day loans. Log whichever alternative you used and re-check the sBOLD post-mortem before ever reconsidering K3\'s own vaults. Cost: $0. Time: 15 minutes.',
-    ],
-    risks: [
-      'EXPLOITED: sBOLD vault lost ~$3.42-3.43M on 18 Nov 2026 and is paused - do not deposit',
-      'The k3-capital.net epoch vaults are unverified; the operator identity is not confirmed',
-      'HyperEVM vault is small (~$1.2M) with a 5% performance fee',
-      'Accountable Galaxy AUSD is single-borrower credit, redemptions capped at 30%/month',
-    ],
-  },
-  {
-    slug: 'hive-protocol',
-    status: 'yield-only',
-    status_label: 'Liquid $B2 rewards - no points',
-    points: 'There is no Hive points programme. Rewards are liquid $B2 tokens paid from the HIVE staking allocation - 20% of the 210M supply, released linearly over 96 months. The historical B2 airdrop snapshot was 18 Apr 2025; do not farm expecting another retroactive drop.',
-    venue: 'B2 Network: bridge BTC, stake at hive.bsquared.network',
-    min_capital: '0.001 BTC minimum stake (about $85-$95)',
-    steps: [
-      'Set up a dedicated wallet for the B2 position, seed phrase on paper, offline. This farm pays in a live token ($B2), so the decision is whether you want $B2 exposure at all. Cost: $0. Time: 15 minutes, once.',
-      'Bridge at least 0.001 BTC (about $85-$95, the minimum stake) to the B2 network through the official bridge linked from hive.bsquared.network. Cost: the BTC plus bridge and network fees. Time: 30 minutes.',
-      'Stake the bridged BTC in Hive at hive.bsquared.network; rewards are paid in $B2 from the staking allocation (20% of supply over 96 months), so the emission rate thins as more BTC stakes. Cost: $0 beyond the stake. Time: 10 minutes.',
-      'Claim $B2 rewards monthly and decide in advance whether to hold or sell them - they are liquid, so this is portfolio management, not points farming. Cost: claim fees. Time: 10 minutes a month.',
-      'Unstaking takes about 24 hours before you can bridge back; log the stake, claims and the 24h delay in your farm log so the exit is never a surprise. Cost: $0. Time: 15 minutes.',
-    ],
-    risks: [
-      'Rewards are a live token ($B2): price risk from the day they are claimed',
-      'The April 2025 airdrop snapshot has passed - no retroactive drop to farm',
-      'Bridged BTC carries bridge and B2-network risk',
-      'Unstake takes ~24 hours before funds can move',
-    ],
-  },
-  {
-    slug: 'opentrade',
-    status: 'no-retail-farm',
-    status_label: 'No retail farm - B2B, KYC-gated',
-    points: 'No OpenTrade token and no points programme exist. OpenTrade is B2B infrastructure: direct access requires KYC/KYB onboarding and a whitelisted wallet, so there is no farm a retail wallet can run.',
-    venue: 'None directly. Retail exposure only inside partner apps: WOO X Earn RWA vault, Littio, belo, Ontop, Nest on Plume',
-    min_capital: 'Partner-app minimums only (the direct route has no retail size - it is not open to retail)',
-    steps: [
-      'Do not try to farm OpenTrade directly: it onboards institutions and platforms through KYC/KYB with whitelisted wallets. There is no points balance, no token and no retail vault to deposit into. Cost: $0. Time: 5 minutes.',
-      'If you want the underlying yield (tokenised Treasury and credit products paying roughly 2-5.2%), take it through a partner app you already trust - the WOO X Earn RWA vault is the most accessible route. Cost: the partner app\'s minimum deposit. Time: 20 minutes.',
-      'Other partner routes exist for specific regions (Littio, belo, Ontop, and Nest on Plume); use one only if it serves your country and you have verified it independently. Cost: as the app sets. Time: 20 minutes.',
-      'Price this as plain yield, not as a farm: nothing you deposit accrues points or token eligibility anywhere, so compare the rate against a plain Treasury product and choose on yield and counterparty alone. Cost: $0. Time: 15 minutes.',
-      'Re-check yearly whether OpenTrade has opened a retail product or programme; until its own site documents one, this entry stays a no-farm. Cost: $0. Time: 10 minutes a year.',
-    ],
-    risks: [
-      'Insufficient retail access: direct route is KYC/KYB and whitelist gated',
-      'No token or points - yield only, at 2-5.2%',
-      'Partner-app exposure adds a second counterparty on top of OpenTrade',
-    ],
-  },
-  {
-    slug: 'clearstar',
-    status: 'yield-only',
-    status_label: 'Yield only - no points',
-    points: 'No Clearstar points programme or token is documented. The farm is curated lending yield on Morpho (Base); Clearstar Labs is operated by NovaFusion SA.',
-    venue: 'Morpho app on Base: Clearstar cbAssets Vault; optional earnXRP via Upshift on Flare',
-    min_capital: '$250-$500 on Base',
-    steps: [
-      'Set up a dedicated farming wallet, seed phrase on paper, offline; fund it with USDC on Base. Cost: $0 plus under $0.10 of gas. Time: 15 minutes, once.',
-      'In the Morpho app, deposit $250-$500 of USDC into the Clearstar cbAssets Vault (about 25.9M USDC in size and about 6.2% APY at research snapshots) and hold the shares. Cost: the deposit, gas under $0.10. Time: 10 minutes.',
-      'Avoid the sibling product Yield Clearstar USDC: it charges a 25% performance fee and lends against frontier collateral for a lower net APY - the worse deal wearing the same brand. Cost of ignoring this: a quarter of your yield. Time: 5 minutes to check the vault name.',
-      'Treat the Clearstar Base RWA vault with care despite its 0% fee: about 99% of it sat in a single market (mGLO) at research time, so it is a concentrated position, not a diversified one. Cost: $0. Time: 5 minutes to read the allocation.',
-      'Optional XRP route: earnXRP on Upshift over Flare (FXRP) pays XRP-denominated yield with a 72-hour withdrawal window - only for capital already held in XRP. Log the main position monthly and exit through Morpho. Cost: $0. Time: 10 minutes a month.',
-    ],
-    risks: [
-      'No points or token: returns are yield only',
-      'Yield Clearstar USDC takes a 25% performance fee against frontier collateral',
-      'Base RWA vault is ~99% concentrated in one market (mGLO)',
-      'earnXRP withdrawals take 72 hours',
-    ],
-  },
-  {
-    slug: 'upshift',
-    status: 'points-live',
-    status_label: 'Points live - Season 2, no token announced',
-    points: 'Upshift Points Season 2 is live (began 2 Jul 2025): deposits earn 1x, rising to 5x while total Upshift deposits stay under $750M, partner markets up to 7.5x, and Monday Acceleration Missions have paid 10x. No token is announced - the points are unpriced optionality on top of real vault yield.',
-    venue: 'Upshift app: Sentora USD (sentUSD), Upshift USDC (upUSDC), Gamma USDC and partner markets',
-    min_capital: '$250-$1,000 (points are per-dollar, and redemptions are queued, so size for a hold)',
-    steps: [
-      'Set up a dedicated farming wallet, seed phrase on paper, offline. Read the Season 2 points rules in the Upshift app before depositing: the 5x multiplier applies only while total deposits stay under $750M, so the rate you start at is not guaranteed. Cost: $0. Time: 20 minutes.',
-      'Deposit $250-$1,000 into one flagship vault: Sentora USD (sentUSD, about 7.31% 30-day APY at research snapshots), Upshift USDC (upUSDC, about 5.35%), or Gamma USDC Enhanced (about 13.96%, with the risk that pays for the difference). Cost: the deposit plus gas. Time: 15 minutes.',
-      'Check the app every Monday for Acceleration Missions, which have paid 10x points; partner markets can pay up to 7.5x if you deliberately route part of the position there. Cost: $0 to check. Time: 15 minutes a week.',
-      'Hold through redemption terms you have read first: exits are epoch-based or queued (at least a day, some vaults 7-30 days), or instant for a fee. Never size this farm with money needed inside a month. Cost: $0. Time: 5 minutes.',
-      'Log points, multiplier tier and vault weekly. The honest expectation: real yield now, points that may never convert - Upshift has announced no token, so never pay a premium anywhere for "Upshift exposure". Cost: $0. Time: 10 minutes a week.',
-    ],
-    risks: [
-      'No token announced: points are unpriced optionality and may convert to nothing',
-      'The 5x multiplier lasts only while total deposits stay under $750M',
-      'Redemptions are queued: 1 day minimum, some vaults 7-30 days, or instant for a fee',
-      'Contagion precedent: the Kelp DAO exploit (Apr 2026) forced Upshift vault freezes',
-    ],
-  },
-  {
-    slug: 'cian-yield-layer',
-    status: 'points-unverified',
-    status_label: 'Points documented - live accrual NOT verified',
-    points: 'CIAN Voyage Points are documented (points on unleveraged deposit value, plus Galxe OAT, Ambassador, Whitelist and Proposal points), but whether points were still accruing in Nov 2026 was NOT verified. No token and no conversion rate are published.',
-    venue: 'CIAN app on Ethereum: stETH Yield Layer (deposit stETH/wstETH, receive ylstETH); points at point.cian.app',
-    min_capital: 'A small test deposit first ($50-$100), scaling only after points visibly accrue',
-    steps: [
-      'Start with verification, not size: deposit a $50-$100 test amount of stETH or wstETH into the stETH Yield Layer, then check point.cian.app after a few days to confirm Voyage Points are actually accruing in November 2026. The programme is documented; its live status is not. Cost: the test deposit plus Ethereum gas. Time: 30 minutes.',
-      'Only if points visibly move, scale the deposit up. Points are calculated on unleveraged deposit value - the recursive Aave looping inside the vault does NOT multiply your points, so do not pay loop risk expecting loop points. Cost: the scaled deposit plus gas. Time: 15 minutes.',
-      'Understand the product you hold: ylstETH is a leveraged stETH position built by recursive Aave borrowing inside the vault, with a two-phase redemption process. Read both phases before depositing size. Cost: $0. Time: 20 minutes of reading.',
-      'Pick up the side points only if they are free: Galxe OAT, Ambassador, Whitelist and Proposal points are documented alongside Voyage Points. Never buy anything to earn them. Cost: $0. Time: 15 minutes.',
-      'Log the test result (did points accrue, at what rate) and the redemption timeline; if the test shows no accrual after a week, withdraw and treat CIAN as yield-only until CIAN documents otherwise. Cost: gas. Time: 15 minutes.',
-    ],
-    risks: [
-      'Live points accrual in Nov 2026 is UNVERIFIED - test small before sizing',
-      'Loop leverage does not multiply points, but does multiply liquidation risk',
-      'Two-phase redemption: exits are not instant',
-      'No token and no published conversion rate for points',
-    ],
-  },
-  {
-    slug: 'defi-saver-asset-management',
-    status: 'no-retail-farm',
-    status_label: 'Not a vault - nothing to farm',
-    points: 'There is nothing to farm here: DeFi Saver Asset Management is not a vault. The TVL in its snapshot record measures users\' own positions on Aave, Maker and Compound that are managed through DeFi Saver Smart Wallets. No token has ever existed and no points or rewards are documented.',
-    venue: 'None. DeFi Saver is tooling for managing positions on Aave, Maker, Compound and similar protocols',
-    min_capital: 'None - there is no DeFi Saver position to size',
-    steps: [
-      'Do not deposit anything "into DeFi Saver": it takes no deposits. Its TVL figure is the sum of its users\' positions on other protocols, so a farm plan addressed to DeFi Saver itself would be farming an accounting label. Cost: $0. Time: 5 minutes.',
-      'Use DeFi Saver for what it is - management tooling. If you run leveraged positions on Aave, Maker or Compound, its Smart Wallet automation (protection, boosts, one-transaction adjustments) can manage them for a 0.25% fee on advanced actions, plus 0.05% on automated ones. Cost: fees only when you act. Time: 30 minutes to set up.',
-      'Farm the underlying protocols instead: any points or rewards come from Aave, Maker, Compound or the asset you hold - open those protocols\' own pages and follow their documented programmes, logging DeFi Saver only as the tool you used. Cost: as those programmes set. Time: varies.',
-      'Re-check if DeFi Saver ever ships a token or rewards programme of its own; in a decade of operation it has not, so treat any "DeFi Saver airdrop" claim as a scam until its official channels say otherwise. Cost: $0. Time: 5 minutes.',
-    ],
-    risks: [
-      'Not a farm: no token, no points, no rewards exist or are documented',
-      'TVL is an accounting aggregate of users\' positions elsewhere, not a pool',
-      'Fees apply to the tooling itself (0.25% advanced actions, +0.05% automated)',
-    ],
-  },
-  {
-    slug: 'plume-vaults',
-    status: 'points-ended',
-    status_label: 'POINTS ENDED 13 Mar 2026 - yield only now',
-    points: 'Correction to v1-era assumptions: Plume Nest Points Season 1 accrual ENDED on 13 Mar 2026 and Plume Points Season 2 closed 31 Mar 2026. No live season is documented - new deposits earn vault yield only, and farming Plume for points today earns nothing.',
-    venue: 'Nest vaults on Plume: nTBILL, nALPHA, nOPAL, nBASIS (yield only)',
-    min_capital: '$250-$500, sized as a yield position, not a points farm',
-    steps: [
-      'Do not deposit for points: Nest Points Season 1 stopped accruing on 13 Mar 2026 and Season 2 closed on 31 Mar 2026. Any guide still presenting Plume points as live is out of date, and deposits made now earn no points at all. Cost: $0. Time: 5 minutes.',
-      'If the yield itself is the goal, choose a Nest vault on its merits: nTBILL (about 3.7%), nBASIS (30-day about 6.8%), nALPHA (30-day about 9.08%) or nOPAL (30-day about 10.9%, Brazilian card receivables - the yield is high because the credit is real). Cost: the deposit plus gas. Time: 15 minutes.',
-      'Check eligibility first: US persons and residents are excluded from these vaults. Cost: $0. Time: 5 minutes.',
-      'Read the redemption window of the specific vault before depositing: most run 1-4 days, but nACRDX can take up to 90 days. Cost: $0. Time: 10 minutes.',
-      'Log the position as yield-only with the points-ended flag, and re-check Plume\'s official channels quarterly for a genuinely new season announcement - only an official announcement restarts this farm. Cost: $0. Time: 10 minutes a quarter.',
-    ],
-    risks: [
-      'Points are OVER: S1 accrual ended 13 Mar 2026, S2 closed 31 Mar 2026 - no points for new deposits',
-      'US persons and residents are excluded',
-      'Redemptions run 1-4 days, up to 90 days for nACRDX',
-      'nOPAL yield is Brazilian card-receivable credit risk, not a free lunch',
-    ],
-  },
-  {
-    slug: 'symbiotic',
-    status: 'points-live',
-    status_label: 'Points live - terms say NO cash value',
-    points: 'Symbiotic Points have run since Jun 2024 with no announced end: Core V2 accrues roughly 0.001 points per hour per $1 of stake actually allocated (idle pre-deposit collateral earns less; delegated stake earns 2x idle). Honesty flags: Symbiotic has NOT announced a token, and its terms state points carry NO cash or monetary value.',
-    venue: 'Symbiotic app on Ethereum: restaking vaults (Core V2)',
-    min_capital: '$500-$1,000 (points are per-dollar per-hour, and Ethereum gas applies)',
-    steps: [
-      'Set up a dedicated Ethereum wallet, seed phrase on paper, offline. Read the points terms first - including the sentence that points carry no cash or monetary value - so the position is sized as speculation, not savings. Cost: $0. Time: 20 minutes.',
-      'Deposit $500-$1,000 of an accepted collateral asset into a Symbiotic Core V2 vault, and make sure the stake is actually ALLOCATED to a network: idle pre-deposit collateral earns materially fewer points than allocated stake (delegated stake earns 2x the idle rate). Cost: the deposit plus Ethereum gas. Time: 20 minutes.',
-      'Choose the vault by its slashing terms, not its headline rate: slashing risk is real and vault-specific, and about 90%+ of points go to stakers with up to 5% each to operators and networks and up to 5% of points as curator admin fee. Cost: $0. Time: 30 minutes of reading.',
-      'Hold and monitor monthly: points accrue per hour on allocated stake, so uptime of the allocation matters. Note the context in your log - Symbiotic TVL has fallen from about $2.7B to roughly $218M, which is either neglect or opportunity, but is not neutral. Cost: $0. Time: 15 minutes a month.',
-      'Exit by withdrawing through the same vault and respecting its unbonding terms; if a token is ever formally announced, your points history is already recorded - until then, value the points at zero in your own accounts. Cost: gas. Time: 15 minutes.',
-    ],
-    risks: [
-      'No token announced; the terms state points carry NO cash or monetary value',
-      'Slashing risk is real and differs per vault and network',
-      'Idle, unallocated collateral earns materially fewer points',
-      'TVL has fallen from ~$2.7B to ~$218M - a much smaller system than at peak',
-      'Ethereum only; mainnet gas applies',
-    ],
-  },
-  {
-    slug: 'r25',
-    status: 'no-retail-farm',
-    status_label: 'Insufficient info - gated, unpublished terms',
-    points: 'No points or airdrop programme is documented anywhere for R25, and neither fees nor minimums are published. What exists is eligibility-gated RWA yield - not a farm a retail wallet can plan around.',
-    venue: 'Sui lane (rcUSD, staked to rcUSDp) or Pharos lane (pRNH and Axil credit vaults) - both gated',
-    min_capital: 'Not published - which is itself the finding',
-    steps: [
-      'Do not size a position here yet: R25 publishes no points programme, no fee schedule and no minimum, so there is nothing concrete to farm and no honest plan can promise one. Cost: $0. Time: 5 minutes.',
-      'Understand the Sui lane before touching it: buy rcUSD, stake it to rcUSDp for yield - but redemption requires KYC, and rcUSD is an UNSECURED obligation of RiftWriter Company Limited. US, China and sanctioned-country residents are barred. Cost of the lesson: $0 if learned here. Time: 15 minutes.',
-      'Understand the Pharos lane: the pRNH vault targets about 7%, and Axil credit vaults lock funds for 3 months with up to 20 further days for redemption. That is a quarter-year commitment to an opaque counterparty. Cost: $0 to decline. Time: 10 minutes.',
-      'If you proceed anyway, proceed as a credit investor, not a farmer: smallest test size, written exit dates, and the KYC requirement accepted in advance. Log everything, because R25\'s own disclosures will not fill the gaps. Cost: test size only. Time: 30 minutes.',
-      'Re-check quarterly for published fees, minimums or a documented programme; until R25 publishes them, this entry stays insufficient-information and no-farm. Cost: $0. Time: 10 minutes a quarter.',
-    ],
-    risks: [
-      'Insufficient public information: no points, fees or minimums are published',
-      'rcUSD is an UNSECURED obligation of RiftWriter Company Limited',
-      'Redemption requires KYC; US, China and sanctioned residents are barred',
-      'Axil vaults lock for 3 months plus up to 20 days redemption',
-    ],
-  },
-  {
-    slug: 'galaxy-curation',
-    status: 'no-retail-farm',
-    status_label: 'Institution-only - no retail product',
-    points: 'No points programme and no Galaxy Curation token are documented. Galaxy Digital distributes its Morpho curation through Fireblocks Earn to 2,400+ institutional clients; there is no retail app, fee schedule, minimum or APY target published.',
-    venue: 'None for retail. Permissionless Morpho listings exist (Galaxy USDC Quality, gUSDCq) but are unsupported for retail',
-    min_capital: 'None - there is no retail position to size',
-    steps: [
-      'Do not plan a Galaxy Curation farm: the product is sold institutionally through Fireblocks Earn, and Galaxy publishes nothing a retail wallet can act on - no app, no fees, no minimums, no programme. Cost: $0. Time: 5 minutes.',
-      'If you find Galaxy-curated vaults listed permissionlessly in the Morpho app (for example Galaxy USDC Quality, gUSDCq; a Galaxy USDC vault on Arc showed 0.97% APY at research snapshots), treat them as plain Morpho lending yield with no curator support channel for you. Cost: standard Morpho deposit, if you choose it. Time: 10 minutes.',
-      'Price that choice honestly: at sub-1% to standard lending rates with no points and no token, the same USDC usually earns as much in a curator vault that actually documents its terms. Cost: $0. Time: 10 minutes to compare.',
-      'Re-check if Galaxy ever launches a documented retail product; an institutional brand is not a farm. Cost: $0. Time: 10 minutes a year.',
-    ],
-    risks: [
-      'Institution-only distribution (Fireblocks Earn, 2,400+ institutional clients)',
-      'No retail app, fee schedule, minimum or APY target is published',
-      'No points or token - plain lending yield at best',
-    ],
-  },
-  {
-    slug: 'lightning-network',
-    status: 'no-retail-farm',
-    status_label: 'No token by design - routing income only',
-    points: 'There is no Lightning token, no points programme and no airdrop - by design, ever. The Lightning Network is a Bitcoin payments layer; the only income is routing fees and liquidity-lease premiums. Airdrop expected value is exactly zero.',
-    venue: 'Your own Lightning node; liquidity marketplaces Amboss Magma and Lightning Pool',
-    min_capital: 'About 0.05-0.1 BTC locked in channels before routing income matters',
-    steps: [
-      'Do not farm Lightning for an airdrop: none can exist. No token will be issued for routing payments, and any "Lightning airdrop" claim is a scam by definition. Cost: $0. Time: 5 minutes.',
-      'If you want routing income as a business, run an always-online Lightning node and open channels with 0.05-0.1 BTC of capacity; below that, fees earned rarely cover the effort. Cost: the BTC locked in channels plus hardware and electricity. Time: a weekend to set up.',
-      'Sell liquidity deliberately: lease channel capacity through Amboss Magma or Lightning Pool, where activity has historically earned about 1-4% APY (per Amboss figures), rather than hoping for organic routing flow. Cost: $0 beyond channel capital. Time: 1 hour to list.',
-      'Budget the real work: 1-3 hours a week of channel rebalancing and node maintenance, every week, indefinitely. Routing is operations, not a deposit. Cost: your time. Time: 1-3 hours a week.',
-      'Log fee income against the BTC locked and the hours spent quarterly; if the hourly return is poor, close channels and hold the BTC - the honest exit most routing guides skip. Cost: closing fees. Time: 1 hour a quarter.',
-    ],
-    risks: [
-      'Airdrop expected value is exactly zero - no token exists or will',
-      'Requires an always-online node and 0.05-0.1 BTC in channels to matter',
-      'Ongoing operations: 1-3 hours a week of channel management',
-      'Hot-wallet risk: node keys are online by necessity',
-    ],
-  },
-  {
-    slug: 'armitage-by-wintermute',
-    status: 'yield-only',
-    status_label: 'Yield only - no points',
-    points: 'No Armitage or Wintermute points programme is documented. The farm is curated lending yield on Morpho (Ethereum), including vaults that lend against Wintermute\'s own unsecured debt - a conflict the plan prices openly.',
-    venue: 'Morpho app on Ethereum: Wintermute USDC Prime or Wintermute USDC Select; Pendle Ecosystem vaults',
-    min_capital: '$1,000+ (Ethereum gas)',
-    steps: [
-      'Set up a dedicated farming wallet, seed phrase on paper, offline; fund it with USDC on Ethereum. Cost: $0 plus Ethereum gas. Time: 15 minutes, once.',
-      'Conservative route: in the Morpho app, deposit $1,000+ into Wintermute USDC Prime (target 4-5% at research time, 0% fees) and hold the shares. Cost: the deposit plus gas. Time: 10 minutes.',
-      'Higher-yield route, only with the conflict understood: Wintermute USDC Select targets 5-8% but lends against v-wmtUSDC - Wintermute\'s own unsecured Wildcat debt. Wintermute is simultaneously borrower, issuer, curator and liquidator on that exposure. Size it as unsecured credit to one firm, not as a vault deposit. Cost: the deposit plus gas. Time: 20 minutes to read the allocation.',
-      'Ignore anything calling itself Armitage Apex: the Apex tier is planned only and does not exist yet, so a live "Apex" vault is not Wintermute\'s. Pendle Ecosystem vaults (5%/10% performance fees) are a separate, documented alternative. Cost: $0. Time: 5 minutes.',
-      'Hold for at least a quarter, log which side of the Prime/Select line each dollar sits on, and exit through Morpho; there are no points to protect, so the exit decision is purely yield versus credit risk. Cost: gas. Time: 15 minutes.',
-    ],
-    risks: [
-      'No points programme: returns are yield only',
-      'Select vaults lend against Wintermute\'s own unsecured debt - borrower, issuer, curator and liquidator are the same firm',
-      'Armitage Apex does not exist yet; anything using the name is not official',
-      'Ethereum gas makes small positions uneconomic',
-    ],
-  },
-  {
-    slug: 'saturn',
-    status: 'points-live',
-    status_label: 'Points live - but NOT Ethena-backed, read the flags',
-    points: 'Orbital Points Season 2 runs 9 Aug to 8 Dec 2026 (hold USDat 5x, sUSDat 1x, Curve LPs 25x, Pendle YT-USDat 30x, AUSD borrow 2x) and STRN is confirmed with up to 5% of initial supply for S2 participants - BUT the STRN registration window (9-16 Nov 2026) is already CLOSED, and US/UK/EU residents are ineligible for the points programme.',
-    venue: 'Saturn app: USDat and sUSDat, plus Curve and Pendle (YT-USDat) positions',
-    min_capital: '$250-$500 (multipliers reward holding, but read the risk flags before sizing)',
-    steps: [
-      'Correct the record first: Saturn is NOT backed by Ethena. USDat is backed by tokenised Treasuries via $M (currently PYUSDx), and sUSDat yield comes from Strategy (MicroStrategy) STRC digital credit via Ondo - a very different risk from a Treasury bill. Cost: $0. Time: 10 minutes.',
-      'Price the known accident: sUSDat crashed to about $0.70 in June 2026 when STRC repriced, and unstaking runs a 3-7 day queue, so you cannot exit mid-crash. Only size what can ride out a repeat. Cost: $0. Time: 5 minutes.',
-      'Check eligibility before depositing: US, UK and EU residents are ineligible for the Orbital Points programme, and the STRN registration window closed on 16 Nov 2026 - if you did not register then, confirm in the app whether S2 points can still convert for you at all. Cost: $0. Time: 15 minutes.',
-      'If eligible and registered: hold USDat for 5x points (it pays 0% yield - the points are the whole return) or sUSDat for 1x plus yield; Curve LPs pay 25x and Pendle YT-USDat 30x, with YT decaying to zero at expiry. Pick one line and understand it fully. Cost: $250-$500 of position. Time: 30 minutes.',
-      'Log points, multiplier and the sUSDat price weekly; third-party risk reports flag admin-key and EOA upgrade control, so any governance surprise is an exit signal, not a discussion. Cost: $0. Time: 10 minutes a week.',
-    ],
-    risks: [
-      'CORRECTION: Saturn is NOT Ethena-backed; sUSDat yield is Strategy STRC digital credit via Ondo',
-      'sUSDat crashed to ~$0.70 in June 2026; unstake queue is 3-7 days',
-      'STRN registration window (9-16 Nov 2026) is CLOSED - unregistered farmers may earn nothing',
-      'US, UK and EU residents are ineligible for the points programme',
-      'Admin-key / EOA upgrade findings in third-party risk reports',
-    ],
-  },
-  {
-    slug: 'tori-finance',
-    status: 'points-live',
-    status_label: 'Points live - docs say NOT a token promise',
-    points: 'Cores points Season 1 began 23 Jun 2026 with no announced end date. Tori\'s own documentation states verbatim that "Cores are not a promise of any token or payment" - no token, tokenomics or TGE has been announced. Also corrected: the token is trUSD (staked: strUSD), not "toriUSD".',
-    venue: 'Tori app: hold trUSD for Cores, or stake to strUSD for Cores plus yield',
-    min_capital: '$250-$500 (Cores accrue on holdings; strUSD yield was about 10% APY at research snapshots)',
-    steps: [
-      'Set up a dedicated wallet, seed phrase on paper, offline, and read Tori\'s Cores documentation first - including its own sentence that Cores are not a promise of any token or payment. Enter only if the yield alone justifies it. Cost: $0. Time: 20 minutes.',
-      'Acquire trUSD (note the name: trUSD, staked form strUSD - "toriUSD" in some trackers is wrong) and hold it to earn Cores only, or stake it to strUSD to earn Cores plus yield at about 10% APY at research snapshots, a rate that already nets out a 10% performance fee. Cost: $250-$500 of position. Time: 20 minutes.',
-      'Understand the engine before sizing: returns come mostly from an OFF-CHAIN hedged money-market carry trade run by the desk, not from on-chain perpetual basis you can inspect. You are trusting the desk\'s reporting. Cost: $0. Time: 20 minutes of reading.',
-      'Never use YT Lock positions: once locked, they can NEVER be withdrawn. And respect the 7-day unstake cooldown on strUSD when planning any exit. Cost of ignoring the lock warning: the whole locked position. Time: 5 minutes.',
-      'Treat tracker multipliers (25x hold, 35x Ecosystem Vault, up to 45x Pendle) as stale late-October figures - verify the current rates in the app before acting on them. Log Cores and yield weekly, valuing Cores at zero until Tori announces otherwise. Cost: $0. Time: 10 minutes a week.',
-    ],
-    risks: [
-      'Tori docs state Cores are "not a promise of any token or payment"; no TGE is announced',
-      'The yield engine is mostly off-chain - returns rest on the desk\'s reporting',
-      'YT Lock positions can NEVER be withdrawn once locked',
-      '7-day unstake cooldown on strUSD',
-      'Published multipliers are stale tracker figures - verify in-app',
-    ],
-  },
-];
+// ---- Batch 2 (researched 2026-11-27, board ranks 25-60) ----
 
-/** The researched plan for one snapshot slug, or undefined when the row keeps the template plan. */
-export const PLAN_BY_SLUG: ReadonlyMap<string, ResearchedPlan> = new Map(RESEARCHED_PLANS.map((p) => [p.slug, p]));
-
-/** How many of the board's protocols carry a hand-researched plan. */
-export function researchedCount(): number {
-  return RESEARCHED_PLANS.length;
-}
-
-// Method note: every fact in this file (programmes, multipliers, APYs, fees, dates, the sBOLD
-// exploit, the Plume season end, the Saturn backing correction) comes from the 2026-11-24 hand
-// research of the protocols' own documentation, apps and official channels, cross-checked
-// against the research log the entry's SUBMIT-PLAN.md points to. Figures are snapshots from
-// that research, stated as such in the plan text; programmes change, and each plan tells the
-// reader where to re-verify (the protocol's own app or docs) before moving funds.
+export const FARMBOOK2: Record<string, FarmPlan> = {
+  'extended-perps': {
+    status: 'points-ended', safety: false,
+    verdict: 'Points ended: the Final Arc closed 2 Nov 2026 and the XTEN TGE is set for 30 Nov 2026. New farmers have nothing to start; existing holders must sign terms by 31 Dec 2026 or lose their allocation.',
+    venue: 'app.extended.exchange (settlement migrated Starknet to Arc on 22 Oct 2026)', capital: 'n/a for new farmers; $0 for holders to sign',
+    totalCost: '$0 — signing the XTEN terms is free and needs no gas', totalTime: 'About 5 minutes for existing holders',
+    steps: [
+      'New farmers: do not deposit to farm points — the programme is finished and new accrual is not documented anywhere (0 cost, 5 minutes to confirm in-app).',
+      'Existing holders: open the Extended app with the wallet that earned points and sign the XTEN distribution terms before 30 Nov 2026 to join the first batch (free, about 5 minutes).',
+      'Final deadline is 31 Dec 2026, 23:59 UTC: unsigned points are lost after it, so do not leave the signature to the last week.',
+      'Starknet-only users must nominate an EVM wallet for the XTEN delivery; XTEN goes to the EVM wallet used at account opening.',
+      'Ignore anyone asking for money or a seed phrase to claim XTEN: Extended states the signing is free.',
+    ],
+    risks: ['Deadline risk is the whole story: unsigned points expire on 31 Dec 2026', 'The points methodology and weightings were never disclosed while the programme ran', 'Perps on the venue run to 100x leverage; trading risk is separate from the closed farm'],
+  },
+  'theo-network-thusd': {
+    status: 'points-live', safety: false,
+    verdict: 'Points live: the thUSD Points Program opened 25 June 2026. No Theo token or airdrop has been announced and Theo has not said what points will be used for.',
+    venue: 'app.theo.xyz (Ethereum)', capital: '$500+',
+    totalCost: 'About $4-$20 Ethereum gas in and out, plus 3-6 month vault lock-ups as the real economic cost', totalTime: 'About 25 minutes to set up, then 5 minutes a week',
+    steps: [
+      'Connect a wallet at the Theo app and acquire thUSD from USDC/USDT (about 10 minutes; Ethereum gas $2-$10). Holding thUSD earns base Liquid points.',
+      'Stake thUSD into sthUSD for yield plus points, knowing the exit runs through a redemption queue averaging about 2 weeks.',
+      'Highest multiplier: deposit into a thUSD vault — Core (3-month), Core+ (6-month) or Boost (6-month via Morpho, capped) — and accept the lock-up as the farm cost.',
+      'Optional: use a referral code (new users get a 10% boost on sthUSD) and track points weekly in the app rewards page (5 minutes).',
+    ],
+    risks: ['Lock-up risk: vault terms run 3-6 months and the sthUSD queue about 2 weeks', 'thUSD yield depends on gold and silver leasing carry, not T-bills alone', 'No token is promised; points may be worth nothing'],
+  },
+  'figure-markets-prime': {
+    status: 'yield-only', safety: true,
+    verdict: 'No points programme: the return is cash interest (pools showed 5.40-9.51%) from lending YLDS. Safety flag: 97% of the borrow side at 30 Sep 2026 was Figure related parties.',
+    venue: 'figuremarkets.com (full KYC required)', capital: '$10 minimum in the smart-contract pools',
+    totalCost: '$0 in platform fees documented; the real cost is KYC time and counterparty concentration', totalTime: 'About 15-30 minutes for KYC, then 5 minutes to lend',
+    steps: [
+      'Create a Figure Markets account and complete full KYC (15-30 minutes, $0); the account is US-centric and is the real barrier, not the $10 minimum.',
+      'Fund the account and acquire YLDS, Figure\'s SEC-registered certificate yielding about SOFR minus 0.35% (about 5 minutes via in-app rails).',
+      'Lend YLDS into a Prime pool (HELOC+ is the flagship); interest accrues hourly from deposit.',
+      'Exit by withdrawing YLDS from the pool, limited to the amount pool liquidity permits — do not treat the position as instantly redeemable.',
+    ],
+    risks: ['Counterparty concentration: related parties supplied 97% of the YLDS Figure borrowed through Prime, and one address owns every smart-contract pool', 'YLDS is a security, not an insured deposit; there is no FDIC cover', 'Figure\'s delinquency on loans held for sale rose as high as 6.61% during 2026'],
+  },
+  'lofty': {
+    status: 'cash-rewards', safety: false,
+    verdict: 'No points and no token farm: the return is daily rental income in ALGO/USDC from fractional US rental properties — a real-estate investment, not an airdrop play.',
+    venue: 'lofty.ai marketplace (Algorand)', capital: '$50 (one property token)',
+    totalCost: '3% buyer fee in and 3% seller fee out — about 6% of principal must be earned back before profit', totalTime: 'About 15 minutes to buy, then passive daily rent',
+    steps: [
+      'Create a Lofty account (about 10 minutes, $0) and pick a property on the marketplace after reading its rent and occupancy figures.',
+      'Buy property tokens at $50 each, paying the documented 3% buyer transaction fee; card, ACH and crypto payment are accepted.',
+      'Hold: rent is distributed daily to token holders in ALGO or USDC, with no claiming step.',
+      'Exit by listing tokens on the secondary marketplace or selling into the market maker; observed prices run $12-$70 per token, so exit is market-set, not $50 par.',
+    ],
+    risks: ['Multiple 2026 reviews note the retail marketplace operates without an SEC filing', 'Single-property LLCs carry vacancy, maintenance and local price risk', 'Secondary liquidity is thin and platform-priced'],
+  },
+  'figure-markets-exchange': {
+    status: 'already-trading', safety: false,
+    verdict: 'Already trading in substance: this slug is the exchange arm of Nasdaq-listed Figure Technology Solutions (FIGR). There is no protocol token and no farm.',
+    venue: 'figuremarkets.com / Figure Markets app (KYC required)', capital: 'n/a as a farm',
+    totalCost: '$0 to open; trading fees per product apply if you trade', totalTime: 'About 15-30 minutes for account and KYC',
+    steps: [
+      'Do not farm this row: there is no points programme and no pre-token thesis, because the parent company is already publicly listed (5 minutes, $0).',
+      'If you want the venue itself: open and KYC a Figure Markets account (15-30 minutes) and trade crypto or the tokenised FIGR stock class there.',
+      'Treat any third-party FIGR token on a DEX (rFIGR, FIGRON and similar) as a wrapper issued by someone else, not a Figure Markets farm.',
+    ],
+    risks: ['Standard centralised-exchange custody and regulatory risk', 'The tokenised-stock product is a security with its own offering terms', 'Wrapper tokens with similar tickers are not issued by Figure'],
+  },
+  'noble': {
+    status: 'points-live', safety: false,
+    verdict: 'Points live: Noble Points run since Mar 2025. The Points Vault forfeits the full ~4.15% T-Bill yield for points with locks up to 4 months; conversion terms are unpublished by Noble itself.',
+    venue: 'points.noble.xyz / dollar.noble.xyz (Keplr wallet)', capital: '$250-$500',
+    totalCost: 'The forfeited ~4.15% yield over the lock is the farm cost; ramp and network fees are cents to a few dollars', totalTime: 'About 25 minutes to set up, then a 2-minute weekly check',
+    steps: [
+      'Get USDN: buy via Kado in the Noble app or swap on a supported venue, and hold it in Keplr (about 15 minutes; fees vary by route).',
+      'Decide the split explicitly before depositing: Points Vault (0% yield, points, up to 4-month lock) versus Flexible Vault (base plus boosted yield, no points).',
+      'Deposit into the chosen vault at the Noble points site (about 5 minutes); points are balance times time, so duration is the strategy.',
+      'Hold to unlock and check the points dashboard weekly (2 minutes); do not break the lock early for a headline.',
+    ],
+    risks: ['Opportunity cost is structural: points cost the full ~4.15% yield for the lock period', 'Noble is migrating from Cosmos to a standalone EVM L1 during the programme', 'Points-to-token conversion appears only in secondary coverage, not Noble\'s own launch post'],
+  },
+  'circle-gateway': {
+    status: 'no-retail-farm', safety: false,
+    verdict: 'No points, no rewards, no token — by design. Gateway is Circle developer infrastructure; its TVL is USDC parked in Gateway Wallet contracts, earning nothing.',
+    venue: 'Gateway-integrated apps and wallets (12 chains)', capital: 'n/a (no yield)',
+    totalCost: '$0 beyond normal chain gas; parked balances earn zero, so the cost is pure opportunity cost', totalTime: 'About 5 minutes to use; there is nothing to farm',
+    steps: [
+      'Deposit nothing for yield: balances parked in Gateway earn exactly zero and no programme exists (5 minutes to confirm in Circle\'s docs, $0).',
+      'Usage only: in a Gateway-integrated app, deposit USDC to the Gateway Wallet contract on your chain (approve plus deposit, about 2 minutes, normal gas).',
+      'Spend the unified balance on any supported destination chain via the app\'s transfer flow (signature plus attestation, under 500 ms).',
+      'If the attestation service is unavailable, the fallback is the 7-day trustless withdrawal path — plan liquidity accordingly.',
+    ],
+    risks: ['Smart-contract and attestation-service dependency on Circle', 'The 7-day fallback withdrawal if the API is unavailable', 'Capital sitting in Gateway earns nothing at all'],
+  },
+  'axis': {
+    status: 'points-live', safety: false,
+    verdict: 'Points live via the Pendle launch (19 Nov 2026): YT-USDx earns 24x Axis Points, sUSDx 6x — but the Pendle markets mature 3 Dec 2026, so the multiplier window is short and fixed.',
+    venue: 'Pendle (Ethereum) and the Axis app', capital: '$500+',
+    totalCost: 'About $4-$20 Ethereum gas; a YT position\'s full price is spend that can expire worthless on 3 Dec 2026', totalTime: 'About 20 minutes to set up, then hold to maturity',
+    steps: [
+      'Acquire USDx or sUSDx on Ethereum via the venues listed in the Axis app (about 10 minutes; gas $2-$10).',
+      'Points-max route: on Pendle, split sUSDx and buy YT-USDx for the 24x multiplier, understanding YT expires worthless at the 3 Dec 2026 maturity.',
+      'Conservative route: hold sUSDx for 6x points plus strategy yield in the share price, or buy PT for the fixed rate (up to 17% quoted at launch, not a guarantee).',
+      'Hold Pendle positions to the 3 Dec 2026 maturity and track Axis Points in the Axis app (5 minutes a week).',
+    ],
+    risks: ['Peg risk is the named principal risk: USDx is backed by an arbitrage book whose proof-of-reserves must be verified live', 'Maturity concentration: everything Pendle-side resolves on 3 Dec 2026', 'Public launch was in 2026; the track record is months, not years'],
+  },
+  'keyrock': {
+    status: 'no-retail-farm', safety: false,
+    verdict: 'No Keyrock points, token or retail product exists in any source consulted. Keyrock is an institutional market maker; its DefiLlama presence is onchain liquidity activity, not a deposit product.',
+    venue: 'None for retail (institutional onboarding only)', capital: 'n/a',
+    totalCost: '$0 — there is nothing to deposit into', totalTime: '5 minutes to confirm and skip',
+    steps: [
+      'Skip this row: there is no farm, no app and no retail onboarding route (5 minutes, $0).',
+      'Do not confuse Keyrock with Rocky (rocky.exchange), a different company whose docs describe a Trading Points programme; those points are not Keyrock\'s.',
+      'Treat any site offering Keyrock points or a KEYROCK token as a scam until Keyrock\'s own site links to it.',
+    ],
+    risks: ['Misidentification is the practical risk: Rocky is not Keyrock', 'Unaffiliated claim sites use the Keyrock name', 'Institutional desks onboard by KYC agreement only; no public terms exist to verify'],
+  },
+  'valos': {
+    status: 'points-unverified', safety: false,
+    verdict: 'No Valos points, token or retail app could be verified. Capital arrives via the institutional Accountable platform on Monad; no public deposit route or terms are published.',
+    venue: 'Accountable (Monad), account-gated', capital: 'Unknown; assume institutional scale',
+    totalCost: 'Unknowable from public sources: no fees, audits or strategy terms are published', totalTime: 'About 15 minutes to verify there is no retail route',
+    steps: [
+      'Do not deposit via any Valos site that search results cannot tie to the DefiLlama-listed protocol; the name is polluted by unrelated projects (Lido ValOS, Valio, Valdora).',
+      'If you hold an Accountable account, check whether a Valos vault is listed for your account and read its tenor and redemption terms in-app before any deposit (about 15 minutes, $0).',
+      'Without an Accountable account there is no honest step to write: this row is a watch item, not a farm.',
+    ],
+    risks: ['Opacity is the risk: no published fees, audits, strategy terms or points rules', 'Single-manager private credit held off-chain via Accountable', 'Search results for the name return several unrelated projects'],
+  },
+  'ember': {
+    status: 'yield-only', safety: false,
+    verdict: 'No Ember-run points programme is documented; the farm is curated vault yield. Partner points (e.g. Ethena-linked) were not verified as Ember rewards.',
+    venue: 'ember.so app (Sui, Ethereum, Base and others)', capital: '$100+ on Sui; $500+ on Ethereum',
+    totalCost: 'Sui fees are cents; Ethereum vaults budget $2-$10 gas in and out', totalTime: 'About 15 minutes to set up, then passive',
+    steps: [
+      'Connect a wallet on the vault\'s chain (a Sui wallet for Sui vaults) in the Ember app (about 5 minutes, gas in cents on Sui).',
+      'Deposit the vault\'s asset — suiUSDe into the suiUSDe vault or USDC into the USDC vault — and hold the receipt token; yield accrues into its price.',
+      'Optional: supply eSUI receipts on Bluefin Lend per Ember\'s docs, only if you accept the extra venue layer.',
+      'Exit via the vault\'s withdrawal queue, which is a managed FIFO queue, not an instant redemption.',
+    ],
+    risks: ['OtterSec\'s audit found the Sui vault burns withdrawal shares before blacklist checks, and operator blacklist/pause powers are by design', 'Withdrawals are operator-mediated through a FIFO queue', 'suiUSDe stacks Ethena-style synthetic-dollar risk under the vault'],
+  },
+  'gami-labs': {
+    status: 'yield-only', safety: false,
+    verdict: 'No Gami points: deposits earn Upshift Points under Upshift\'s programme (1x base) plus a Merkl campaign paying USDC — the points belong to Upshift, not Gami.',
+    venue: 'Upshift app (Stellar): Gami earnUSDC and earnXLM', capital: '$100+',
+    totalCost: 'Stellar fees are cents end to end; budget about $1 including an exchange withdrawal', totalTime: 'About 20 minutes to set up, then passive',
+    steps: [
+      'Hold native Stellar USDC in a Stellar wallet such as Freighter (about 10 minutes; an exchange withdrawal to Stellar is the cheap route).',
+      'In the Upshift app, open Gami earnUSDC (Stellar) and deposit USDC; hold the earnUSDC shares recorded in the Soroban vault contract (no trustline needed).',
+      'Merkl USDC rewards accrue to depositors automatically; the DeFindex route harvests and re-deposits them if you enter that way.',
+      'Exit in the app: withdrawals are instant up to the USDC the vault holds; larger amounts return as the curator unwinds positions.',
+    ],
+    risks: ['Stellar DeFi liquidity is thin, so large exits can wait on unwinds', 'Gami operates through Fordefi MPC wallets under a policy engine — a control, and a centralisation point', 'Incentive-topped APYs end when campaigns end'],
+  },
+  'arcus-perps': {
+    status: 'points-live', safety: true,
+    verdict: 'Points live: Season 1 pays from a fixed 250,000 points/week pool to 30 June 2027 at the latest. Safety flag: a subaccount bug was exploited for $2,234,391 on 9 Nov 2026 (treasury covered it in full).',
+    venue: 'Arcus on Robinhood Chain (invite-code gated)', capital: '$500-$1,000',
+    totalCost: 'Trading fees per the in-app schedule; the invite must be activated by a deposit or trade within 30 days', totalTime: 'About 20 minutes to set up, then ongoing trading',
+    steps: [
+      'Obtain an invite code (existing traders earn one per $1M of perps volume) and create an account (about 10 minutes, $0).',
+      'Deposit USDC, USDT, BTC or another supported asset and activate the code with a deposit or perps trade inside 30 days; pre-28-Oct codes had to be activated by 27 Nov 2026.',
+      'Trade spot or perps, or market-make; boosted categories are stock-token/RWA pairs and off-US-hours trading (fees per the venue schedule).',
+      'Keep collateral on-platform between trades, because retained deposits score, and check the Points dashboard each Wednesday distribution.',
+    ],
+    risks: ['A $2.23M exploit hit a months-old venue in Nov 2026, even though the treasury covered it', 'Wash trading or self-matching can zero your points', 'Not available in the US, Canada, UK and other restricted jurisdictions; perps carry liquidation risk'],
+  },
+  'mellow-core': {
+    status: 'points-live', safety: false,
+    verdict: 'Points live and documented by Mellow itself: 0.00025 points per hour per $1 in any active vault. No token announced and no conversion promised. Scale warning: restaking TVL collapsed from ~$834M to ~$9.7M.',
+    venue: 'app.mellow.finance (mostly Ethereum)', capital: '$500-$1,000',
+    totalCost: 'About $4-$20 Ethereum gas across deposit and the queued exit', totalTime: 'About 20 minutes to set up, then passive accrual',
+    steps: [
+      'In the Mellow app, pick a Core Vault by asset (ETH-family to EarnETH, stablecoins to EarnUSD) and read its curator and strategy page (about 10 minutes, $0).',
+      'Approve and deposit ($2-$10 gas); hold the liquid share token — points accrue automatically at the documented hourly rate.',
+      'Optional stack: restaking-tab vaults (e.g. the DVT vault earning Obol/SSV incentives) add slashing and operator risk; treat that as a separate decision.',
+      'Exit through the vault\'s withdrawal queue with NAV mechanics; deposits and withdrawals are queued, not instant.',
+    ],
+    risks: ['A >98% TVL drawdown from peak means thin vault liquidity and curator-attention risk', 'Fees are set per vault by curators and are not published on the homepage', 'Restaking vaults add slashing risk on top of vault risk'],
+  },
+  'azverse-perps': {
+    status: 'no-retail-farm', safety: false,
+    verdict: 'No points or airdrop programme is documented: perp trackers that flag active programmes for its peers show none for AZverse, and no token is listed. Trading there is just trading.',
+    venue: 'AZverse perp DEX (no KYC)', capital: 'n/a as a farm',
+    totalCost: '$0 to skip; trading fees are maker 0.040% / taker 0.060% if you trade anyway', totalTime: '5 minutes to confirm and skip',
+    steps: [
+      'Do not size any position on an assumed future airdrop: none is documented (5 minutes, $0).',
+      'If you trade there anyway: deposit, trade, and withdraw promptly — standard perp-DEX hygiene on a young venue.',
+      'Re-check the perp trackers quarterly (5 minutes, $0); a documented programme would change this row\'s status.',
+    ],
+    risks: ['Volume to open-interest ratio near 8x suggests heavy churn that earns nothing without a programme', '102 of its 171 markets are RWA perps, adding oracle and session risk', 'Young venue with no published points or token'],
+  },
+  'curvance': {
+    status: 'points-live', safety: true,
+    verdict: 'Bytes points are live on Monad — but safety flag: an independent risk report (verdict: avoid) documents the Emergency Council bypassing its own 5-day timelock, unaudited production contracts, and a May 2026 eBTC market still paused with lenders unable to redeem.',
+    venue: 'app.curvance.com (Monad)', capital: '$250-$500',
+    totalCost: 'Monad gas is cheap (cents); the real cost is the governance risk priced below', totalTime: 'About 15 minutes to set up; daily health checks if borrowing',
+    steps: [
+      'Read the risk summary first (10 minutes, $0): if the timelock bypass and paused eBTC market are not risks you accept, stop here — the points do not pay for them.',
+      'Hold MON plus your supply asset on Monad and open the Curvance app (about 5 minutes).',
+      'Supply to an isolated market (stablecoins for the passive leg); Bytes accrue on deposits automatically.',
+      'Optional and higher-risk: borrow against LST collateral and loop — Bytes also accrue on borrows, but utilisation runs ~90% and liquidation risk is real; check health factor daily.',
+    ],
+    risks: ['The 4-of-5 Emergency Council repeatedly used no-delay powers instead of the 5-day timelock', 'Several production contracts have no audit coverage found by the risk report', 'The May 2026 eBTC market is still paused with WBTC lenders unable to redeem'],
+  },
+  'doppler-finance': {
+    status: 'already-trading', safety: true,
+    verdict: 'Already trading: XDP exists and trades. URGENT: the S1/S2 airdrop claim window closes 28 Nov 2026, 12:00 UTC. Season 3 DP points are live (0.01 DP per $1 per hour; XDP staking at 20x). Beware the lookalike dopplervault.com phishing site.',
+    venue: 'Doppler app (XRP Ledger, Xaman wallet)', capital: '$100+',
+    totalCost: 'XRPL fees are about $0.0004 per transaction; the real cost is the 7-day withdrawal window and CeDeFi counterparty exposure', totalTime: 'About 20 minutes to set up; claims take 5 minutes before the deadline',
+    steps: [
+      'If you farmed S1/S2, claim XDP before 28 Nov 2026, 12:00 UTC via Doppler\'s official channels only — a lookalike site advertises a fake 18.42% APR claim flow (5 minutes, $0).',
+      'Connect a Xaman wallet to the Doppler app and deposit XRP into the XRP Vault (~3-4.5% APR) or RLUSD into the RLUSD Vault (~7-11% APR); no deposit or withdrawal fees.',
+      'DP accrues automatically on the deposit; optionally stake held XDP for the 20x Season 3 DP rate.',
+      'Exit by requesting withdrawal and waiting out the ~7-day processing window.',
+    ],
+    risks: ['CeDeFi opacity: yield comes from off-exchange strategies run through custodians, not a transparent onchain strategy', 'A phishing lookalike (dopplervault.com) advertises APRs far above Doppler\'s documented ~3-8%', 'XRPL tooling (destination tags, account reserves) is unfamiliar to most EVM users'],
+  },
+  'tulipa-capital': {
+    status: 'yield-only', safety: false,
+    verdict: 'No Tulipa points or token documented; the farm is Morpho and Lagoon vault yield plus any generic Merkl campaign on the specific vault.',
+    venue: 'Morpho app, curator filter Tulipa Capital (Base is cheapest)', capital: '$250-$500 on Base; $1,000+ on Ethereum',
+    totalCost: 'Under $0.50 on Base; $2-$10 on Ethereum, in and out', totalTime: 'About 20 minutes to set up, then 10 minutes a week',
+    steps: [
+      'In the Morpho app, filter curator = Tulipa Capital and read the specific vault\'s markets, fee and liquidity before depositing (about 10 minutes, $0).',
+      'Approve and deposit the vault\'s asset (gas under $0.10 on Base); hold the share token.',
+      'Check Merkl via Morpho for any campaign on your vault and claim if present (5 minutes a week).',
+      'Exit in the Morpho app subject to live market liquidity.',
+    ],
+    risks: ['Tulipa publishes no audits and no fee schedule; per-vault terms must be read in-app', 'Tulipa markets took bad-debt impact (under $1M) in the Resolv hack post-mortem', 'Morpho bad debt is socialised into the share price'],
+  },
+  'b14g': {
+    status: 'do-not-deposit', safety: true,
+    verdict: 'DO-NOT-DEPOSIT advisory on the CORE leg: about 97 million CORE staked through b14g was withdrawn without authorisation in late Oct 2026, unresolved in public sources. Its Point Program exists per docs reviews but publishes no rates, terms or token link (points-unverified).',
+    venue: 'b14g.xyz app — CORE leg suspended by this advisory', capital: 'Do not deposit CORE-side capital',
+    totalCost: '$0 — the correct action on the CORE leg is to deposit nothing', totalTime: 'About 15 minutes to read the incident statement before deciding anything',
+    steps: [
+      'Read the incident statement on b14g\'s official channels first and confirm which contracts are affected (about 15 minutes, $0).',
+      'Deposit no new CORE-side capital until the incident is explained and a recovery status is published; the dollar loss is not established in public sources.',
+      'BTC leg, only with eyes open: stake BTC via the b14g app — BTC stays timelocked in your own wallet by design; economically 0.01 BTC+ given timelock illiquidity.',
+      'Hold any BTC stake until its timelock expires; rewards come from the partner chain\'s dual-staking emissions, at rates b14g does not publish.',
+    ],
+    risks: ['~97M CORE was withdrawn without authorisation and TVL halved within a month of the incident', 'No published fee schedule; no-loss restaking is a design claim, not a guarantee', 'The dualCORE receipt token has effectively stopped trading'],
+  },
+  're7-labs': {
+    status: 'yield-only', safety: false,
+    verdict: 'No Re7 points or token documented; the farm is curator vault yield on Morpho, Euler and Kamino plus venue-level Merkl campaigns. Performance fees are commonly 10%.',
+    venue: 'Morpho app, curator filter Re7 Labs; Kamino Earn on Solana', capital: '$250-$500 on Base; $1,000+ on Ethereum',
+    totalCost: 'Under $0.50 on Base; $2-$10 on Ethereum; ~10% performance fee is typical per vault', totalTime: 'About 20 minutes to set up, then 10 minutes a week',
+    steps: [
+      'In the Morpho app, filter curator = Re7 Labs and pick a vault whose mandate you understand; Re7 leans to emerging markets, so read the allocation list, not just the APY (about 10 minutes).',
+      'Verify the vault is public before planning: some Re7 vaults (e.g. Re7 Confidential Ondo USDC) are permissioned and accept no outside deposits.',
+      'Approve and deposit; hold the re7 share token and check Merkl via Morpho for campaigns on your vault.',
+      'Exit in-app subject to market liquidity.',
+    ],
+    risks: ['Emerging-market mandates carry more collateral and oracle risk than Prime-style curators', 'Morpho bad debt is socialised into the share price', 'Fee opacity per vault: 10% performance is typical, not universal'],
+  },
+  'lagoon': {
+    status: 'no-retail-farm', safety: false,
+    verdict: 'No Lagoon points or token: Lagoon is ERC-7540 vault infrastructure used by curators. Any farm is a specific curator\'s vault yield; there is no Lagoon-level reward.',
+    venue: 'app.lagoon.finance (82+ curator vaults)', capital: 'Vault-specific; $500+ given async exits',
+    totalCost: 'Gas varies by chain (cents to $10); Lagoon takes 10% of curator fees on fee-charging vaults', totalTime: 'About 30 minutes, most of it reading one vault\'s terms',
+    steps: [
+      'Pick one vault and read its page end to end: curator, custody (Safe, Fordefi or Fireblocks), fees and settlement terms (about 15 minutes — this step is the diligence).',
+      'Deposit the vault\'s asset and receive ERC-7540 shares after the curator settles the request at a valuation (gas by chain, about 5 minutes).',
+      'Hold; NAV updates at each valuation and there is no Lagoon-level points balance to track.',
+      'Exit by redemption request: settlement is curator-processed and can be slow — the example credit vault allows up to 3 weeks for standard redemptions.',
+    ],
+    risks: ['Deposits and redemptions are requests settled at NAV by the curator, not instant swaps', 'In credit vaults capital leaves the vault to a settlement address and is deployed off-chain', 'The factory contracts are upgradeable and per-vault audits vary'],
+  },
+  'stellar-defi-hub': {
+    status: 'yield-only', safety: false,
+    verdict: 'The Hub is a front-end, not a protocol with rewards: the product is Sentora USDC on Stellar (Upshift infrastructure, launched 19 Nov 2026). Upshift Points and a Merkl USDC campaign belong to other programmes.',
+    venue: 'Stellar DeFi Hub or the Upshift app (Stellar)', capital: '$100+',
+    totalCost: 'Stellar fees are cents end to end; budget about $1 including an exchange withdrawal', totalTime: 'About 20 minutes to set up, then passive',
+    steps: [
+      'Hold native Stellar USDC in a Stellar wallet such as Freighter (about 10 minutes; exchange withdrawal is the cheap route).',
+      'Deposit into Sentora USDC via Stellar DeFi Hub, or via the Upshift app if you want the position inside the Upshift points surface.',
+      'Hold the vault position: yield accrues to the share value and Merkl pays USDC rewards to depositors.',
+      'Withdraw any time, subject to vault liquidity; there is no withdrawal timelock.',
+    ],
+    risks: ['Brand-new vault (launched 19 Nov 2026): early yield may be mostly a launch reward rate set for an initial period only', 'Stellar DeFi depth is thin', 'Some Sentora products are unavailable to US residents; check the terms'],
+  },
+  'tydro': {
+    status: 'points-unverified', safety: true,
+    verdict: 'No Tydro token or Tydro-run points. Third parties document INK ecosystem rewards for supplying on Tydro (claimable via Merkl), but INK conversion terms are Ink\'s and unpublished. Safety flag: all markets were paused in May 2026 after a suspected attack — check market status before depositing.',
+    venue: 'app.tydro.com (Ink L2)', capital: '$250+',
+    totalCost: 'Bridge cost varies by route ($1-$10); Ink gas is cheap once there', totalTime: 'About 25 minutes including the bridge, then weekly reward claims',
+    steps: [
+      'Check the app\'s market status before depositing anything: markets were halted in May 2026 after a suspected attack, and one tracker lists markets frozen since 29 Oct (5 minutes, $0).',
+      'Bridge assets to Ink L2 (about 10 minutes; cost varies by route) and open the Tydro app.',
+      'Supply an eligible asset (USDT0 or USDG carry the documented INK point pools, e.g. 31K points/day shared by USDT0 suppliers); borrowing adds liquidation risk and is a separate decision.',
+      'Track rewards via the Ink Rewards button and claim through Merkl inside the interface; withdraw subject to utilisation.',
+    ],
+    risks: ['Pause history: a suspected attack halted all markets in May 2026; the protocol moved to a new oracle with a 48-hour timelock', 'TVL quadrupled in under three days in Nov 2026 with no team explanation — concentration risk', 'Governance sits with the Ink Foundation; Aave-code familiarity is not a guarantee'],
+  },
+  'ultrayield-curator': {
+    status: 'yield-only', safety: false,
+    verdict: 'No UltraYield points or token documented; the farm is Morpho vault yield from Edge Capital\'s curation arm plus any generic Merkl campaign.',
+    venue: 'Morpho app, curator filter UltraYield (Base is cheapest)', capital: '$250-$500 on Base',
+    totalCost: 'Under $0.50 gas on Base; read the vault page for fees — up to 50% of yield is possible under one disclosure for edgeUSDC', totalTime: 'About 20 minutes, most of it reading allocations',
+    steps: [
+      'In the Morpho app, filter curator = UltraYield and open the vault\'s market allocations before anything else (about 10 minutes — essential here, see risks).',
+      'Approve and deposit USDC on Base (gas under $0.10); hold the edgeUSDC or vault share token.',
+      'Check Merkl via Morpho for campaigns on your vault and claim if present (5 minutes a week).',
+      'Exit in-app subject to market liquidity.',
+    ],
+    risks: ['Collateral concentration: ~65% of the flagship Base vault is uniBTC exposure with a hybrid oracle', 'DefiLlama\'s risk view models ~32% deposit loss if collateral falls 50%', 'Fees and audits are not clearly published per vault, and TVL is shrinking'],
+  },
+  'aegis-yusd': {
+    status: 'points-unverified', safety: false,
+    verdict: 'Aegis Points rates are documented only for 2025 (hold YUSD 15 pts/$/day, LP 30, Euler borrow 45); no current-season terms could be verified from Aegis\'s own site. The reliable return is weekly-claimed funding yield.',
+    venue: 'aegis.im app (Ethereum and BNB Chain)', capital: '$250-$500',
+    totalCost: 'Weekly yield claims are transactions: Ethereum gas makes small balances uneconomic; the BNB Chain route is cheaper', totalTime: 'About 15 minutes to set up, then a weekly 5-minute claim',
+    steps: [
+      'Acquire YUSD in the Aegis app or on a DEX on Ethereum or BNB Chain (about 10 minutes; gas $0.10-$10 by chain).',
+      'Hold YUSD in a wallet the app tracks: rewards accrue from 8-hourly snapshots automatically, then claim weekly in the app (each claim is a transaction).',
+      'Or stake YUSD into sYUSD for auto-compounding, accepting the 7-day unstaking cooldown.',
+      'Check the app\'s points page before assuming any points accrual; do not pay loop costs for points that may no longer exist.',
+    ],
+    risks: ['Delta-neutral is not risk-free: funding can go negative and hedges sit on centralised exchanges', 'YUSD minting uses third-party custody', 'Yield claims of 8-12% are marketing-era figures; realised yield floats with funding'],
+  },
+  'infinifi': {
+    status: 'already-trading', safety: false,
+    verdict: 'Already trading: INFI\'s TGE went live 17 Nov 2026 and the pre-token farm is over. Season 3 Points are live post-TGE (336,000 points per weekly Chapter; iUSD 2x, siUSD 1x, some LPs 3x).',
+    venue: 'app.infinifi.xyz (Ethereum and Base)', capital: '$500+',
+    totalCost: 'About $4-$20 Ethereum gas; holding plain iUSD earns 0% interest, so the forgone yield is the farm cost', totalTime: 'About 20 minutes to set up, then weekly consistency',
+    steps: [
+      'If you farmed S1/S2 and registered before 10 Nov 2026, claim INFI via official channels only; unregistered farmers cannot retro-claim — their INFI rolls into Season 3 bonuses.',
+      'Deposit USDC and mint iUSD (about 10 minutes; gas $2-$10). Note iUSD is a deposit receipt, not a stablecoin, and can trade below $1.',
+      'Choose the tranche deliberately: hold iUSD (2x points, 0% interest), stake to siUSD (yield plus 1x), or lock to liUSD (1-13 week locks, higher yield).',
+      'Maintain consistency: the Season 3 consistency multiplier resets if you stop, and Chapters split 336,000 points weekly.',
+    ],
+    risks: ['Fractional-reserve structure: liquid exits depend on the reserve ratio against illiquid Pendle/Ethena allocations', 'Plain-iUSD farming earns zero interest by design', 'Post-TGE, INFI price risk applies to every reward'],
+  },
+  'nado-spot': {
+    status: 'points-ended', safety: false,
+    verdict: 'Points ended at 20:00 EST on 12 Nov 2026: ~33.2M points to 45,000+ users are final and locked. Nado says points convert to INK at the Ink TGE, with no rate or date published. New deposits earn zero points.',
+    venue: 'app.nado.xyz (Ink L2) — claim-readiness only', capital: 'n/a — do not deposit for points',
+    totalCost: '$0 — the remaining actions are free checks', totalTime: 'About 10 minutes for existing farmers',
+    steps: [
+      'New farmers: do not deposit for points — the programme ended 12 Nov 2026 and balances are final (5 minutes to confirm, $0).',
+      'Existing farmers: open the Points page in the Nado app and record your final balance after the week-51 distribution (about 5 minutes, $0).',
+      'Claim any outstanding USDT0 rewards still listed on the Rewards page.',
+      'Keep the trading wallet: any INK conversion will go to that account. Ignore Nado Points relaunch claims; PRIME and Purps earn no points.',
+    ],
+    risks: ['Conversion risk is total: INK has no date or rate, so 51 weeks of points are unpriceable today', 'Nado runs an off-chain sequencer; only the risk engine is onchain', 'The NLP vault remains a yield product whose depositors are counterparty to traders'],
+  },
+  'shift-defi': {
+    status: 'points-live', safety: false,
+    verdict: 'Points live per the programme guide: Shift Points on vault deposits plus referrals (5%), stacking partner points (Paradex, Lighter S3 at 1x, Hibachi at 1.3-2x). Identity caution: an unrelated SHIFT RWA protocol exists on Solana with no campaign.',
+    venue: 'Shift app (Base for the Paradex vault; Arbitrum for hibaUSD)', capital: '$250-$500',
+    totalCost: 'Base and Arbitrum gas are cents to $1; hibaUSD\'s $250K cap means access itself may be the constraint', totalTime: 'About 20 minutes, starting with verifying the correct app',
+    steps: [
+      'Verify you are on the correct Shift (the vault protocol) from DefiLlama\'s shift-protocol page — not the Solana RWA SHIFT (about 5 minutes, $0, and the most important step).',
+      'Base route: fund USDC on Base and deposit into the Paradex vault; Shift Points plus Paradex points accrue on size times duration.',
+      'Arbitrum route, if capacity remains: deposit USDT0 into hibaUSD for Lighter and Hibachi points stacking.',
+      'Link an Ethos profile if your score is over 1400 for the +20% Shift Points boost; referrals add 5% of referees\' points.',
+    ],
+    risks: ['Shift does not publish its strategies\' exact mechanics, fee schedule or withdrawal terms', 'Its two listed audits lack published auditor names, reports or scope', 'Points terms come from a third-party guide, not Shift\'s own docs — verify rates in-app'],
+  },
+  'apex-omni': {
+    status: 'already-trading', safety: false,
+    verdict: 'Already trading: APEX trades, with esAPEX staking for weekly revenue rewards. Ape Points (Epoch 13 ran 23-29 Nov 2026) redeem for mystery-box prizes, not a token allocation.',
+    venue: 'omni.apex.exchange', capital: '$250-$500 if trading anyway',
+    totalCost: 'Perp fees of maker 0.02% / taker 0.05% on every trade; points should never be the reason to open a leveraged position', totalTime: 'About 15 minutes to set up, then per-epoch trading',
+    steps: [
+      'Connect a wallet at the ApeX Omni site and deposit USDT via a supported chain; Mantle deposits carry an Ape Points boost (about 10 minutes).',
+      'Trade perps only if you would trade anyway: points accrue per epoch from positive fees paid (maker 0.02%, taker 0.05%).',
+      'Optional boosts: stake APEX, hold a higher account balance, or use the team/referral boost (up to 10% of invitees\' points, team booster max 1.5x).',
+      'Redeem points in ApeX Social for mystery boxes or prizes when offered; they have no guaranteed value.',
+    ],
+    risks: ['One account per user: multi-account farming and bots are prohibited and points face clawback at ApeX\'s sole discretion', 'Cross-margin only: one position\'s loss eats the whole account balance', 'US residents are barred by the terms; spot trading on Omni closed in Aug 2026'],
+  },
+  'manta-cedefi': {
+    status: 'already-trading', safety: false,
+    verdict: 'Already trading: MANTA trades (~449M circulating of 1B), so there is no pre-token thesis. The CeDeFi product pays yield only, with custody partly centralised and no audits listed.',
+    venue: 'Manta CeDeFi app (Manta Pacific)', capital: '$250+',
+    totalCost: 'Bridge fees vary ($1-$10); product terms are not published, so read them in-app before depositing', totalTime: 'About 20 minutes including the bridge',
+    steps: [
+      'Do not farm this row for a token: MANTA already trades and no points programme exists (5 minutes, $0).',
+      'If you want the yield anyway: bridge assets to Manta Pacific (about 10 minutes; bridge fees vary).',
+      'Deposit into the CeDeFi product in the Manta app and hold the position; advertised stablecoin APYs up to ~17.5% are marketing, not a rate card.',
+      'Withdraw per the product\'s in-app terms, which are not published in the sources consulted — read them before depositing, not after.',
+    ],
+    risks: ['Custody is partly centralised and DefiLlama lists no audits for the product', 'Yield depends on off-chain CeFi counterparties you cannot inspect', 'Manta Atlantic stopped producing blocks and users were migrated by an off-chain signature claim — operator discretion is the pattern'],
+  },
+  'decibel': {
+    status: 'points-live', safety: false,
+    verdict: 'Points live: Amps Season 1 runs since mainnet (late Feb 2026) and Decibel\'s docs call Amps a primary input for the planned DCBL distribution — but terms promise nothing and no rate is published. Any DCBL token circulating today is fake.',
+    venue: 'Decibel on Aptos (gas sponsored)', capital: '$250-$500',
+    totalCost: 'Perp fees maker 0.015% / taker 0.045%; spot 0.040% / 0.070%; the DLP vault route locks deposits for 72 hours', totalTime: 'About 20 minutes to set up, then daily streaks and weekly checks',
+    steps: [
+      'Create an account (wallet, email, Google or Apple ID) and deposit USDC from Ethereum, Arbitrum, Base, Solana, Sui or Aptos (about 10 minutes; gas is sponsored).',
+      'Earn Amps by trading: scoring favours activity quality — moderate leverage and longer holds score better, and less-liquid markets get a bonus.',
+      'Passive route: deposit into the DLP vault (72-hour lockup); Amps scale with amount times duration and accrue daily with no claim step.',
+      'Keep a daily streak going for progressive bonuses and check the points dashboard weekly; ignore any DCBL claim site until Decibel publishes a contract.',
+    ],
+    risks: ['Scoring formulas are deliberately undisclosed, so your cost per Amp is unknowable in advance', 'DLP depositors are the house counterparty and can draw down', 'Young venue (mainnet since Feb 2026) on a smaller chain ecosystem'],
+  },
+  'liminal-basis': {
+    status: 'yield-only', safety: false,
+    verdict: 'No official points system and no token — stated plainly in its coverage. A fake $LIM vote is circulating on X; there is no $LIM to claim. Referral income exists but pays cash USDC commissions.',
+    venue: 'liminal.money (Hyperliquid)', capital: '$250+ for xTokens/limUSD',
+    totalCost: 'xToken fees are 10% performance plus 1% management; limUSD adds a further 10% performance fee', totalTime: 'About 15 minutes to set up, then passive',
+    steps: [
+      'Verify the domain is exactly liminal.money and connect a wallet (about 5 minutes, $0) — the fake $LIM campaign is the trap on this row.',
+      'Mint limUSD for the diversified route, or a single xToken (xHYPE, xBTC or xLEND) with USDC, USDT0 or USDH.',
+      'Hold: yield accrues into the token\'s NAV automatically, with no staking step and no lock-up documented for xTokens.',
+      'Optional stack: split xTokens on Pendle or use them as collateral on HypurrFi, only if you accept the extra venue layers.',
+    ],
+    risks: ['Funding-rate risk is the product: when funding turns negative the strategy pays instead of earning', 'The whole book runs on one venue (Hyperliquid) plus LayerZero bridging for spoke-chain xTokens', 'TVL has fallen ~75% from its Sep 2025 all-time high'],
+  },
+  'drakewell': {
+    status: 'no-retail-farm', safety: false,
+    verdict: 'No points programme, and direct minting is whitelisted-institutional only (not offered to US persons). Drakewell is the 10 Nov 2026 rebrand of JUSD Finance; retail exposure is a secondary DEX purchase, not a farm.',
+    venue: 'drakewell.fi (institutional mint); Uniswap for secondary SPYdw', capital: 'n/a for farming',
+    totalCost: '$0 to skip; secondary purchases face thin-liquidity slippage on a ~$0.56M TVL token', totalTime: '5 minutes to confirm and skip',
+    steps: [
+      'Do not attempt to mint: mint and burn are institutional-whitelist only, and products are not offered to US persons (5 minutes, $0).',
+      'If buying SPYdw secondarily anyway: verify the token contract from Drakewell\'s official site first, and expect thin liquidity.',
+      'Understand the product before any purchase: USDdw yield buys 1-year SPY call options annually — in flat years the calls expire worthless and the drag is real.',
+      'Plan the exit as DEX liquidity only: retail holders have no direct redemption right.',
+    ],
+    risks: ['No direct redemption for retail; exit is whatever the DEX pool offers', 'USDdw rates are set per vault and can change; underlying strategies include private credit and CEX/DEX arbitrage', 'Brand-new issuer identity (rebranded 17 days before this research) under either name'],
+  },
+};

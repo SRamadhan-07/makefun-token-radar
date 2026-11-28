@@ -1,93 +1,37 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SONAR - Token Launch Radar</title>
+<title>SONAR-3 — Token Launch Radar</title>
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
-<header class="masthead">
-  <div class="masthead-in">
-    <div>
-      <h1>SONAR <span class="thin">/ token launch radar</span></h1>
-      <p class="sub" id="subline">Loading the board...</p>
-    </div>
-    <div class="mast-stats" id="mastStats"></div>
-  </div>
+<header>
+  <div class="brand"><span class="dot"></span>SONAR-3 <span class="sub">token launch radar</span></div>
+  <div class="meta" id="headmeta"></div>
 </header>
-
+<nav id="filters" aria-label="Board filters"></nav>
+<div class="toolbar">
+  <input id="q" type="search" placeholder="Search name, slug or category">
+  <span id="count" class="count"></span>
+</div>
 <main>
-  <section class="panel model-panel">
-    <h2>How the board is priced</h2>
-    <p id="modelText"></p>
-    <p id="farmbookText"></p>
+  <section id="boardwrap">
+    <table id="board">
+      <thead><tr>
+        <th data-k="rank">#</th><th data-k="name">Protocol</th><th data-k="category">Category</th>
+        <th data-k="tvl_usd" class="num">TVL</th><th data-k="change_7d" class="num">7d</th>
+        <th data-k="implied_value_usd" class="num">Implied value (range)</th>
+        <th data-k="confidence">Conf.</th><th>Farm</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
   </section>
-
-  <section class="controls">
-    <div class="seg" role="tablist">
-      <button id="viewBoard" class="seg-btn active" type="button">Pre-token board</button>
-      <button id="viewLive" class="seg-btn" type="button">Already trading</button>
-    </div>
-    <input id="search" type="search" placeholder="Search name, category, chain..." aria-label="Search the board">
-    <select id="filter" aria-label="Filter rows">
-      <option value="all">All rows</option>
-      <option value="researched">Hand-researched plans</option>
-      <option value="points-live">Points live</option>
-      <option value="flags">Safety flags &amp; corrections</option>
-      <option value="yield-only">Yield only (no points)</option>
-      <option value="no-retail-farm">No retail farm</option>
-      <option value="watchlist">Watchlist</option>
-      <option value="early">Early radar</option>
-    </select>
-    <select id="sort" aria-label="Sort rows">
-      <option value="rank">Sort: rank</option>
-      <option value="implied">Sort: implied value</option>
-      <option value="tvl">Sort: TVL</option>
-      <option value="growth">Sort: 7d growth</option>
-    </select>
-  </section>
-
-  <section class="layout">
-    <div class="panel table-panel">
-      <table id="board">
-        <thead>
-          <tr>
-            <th class="num">#</th>
-            <th>Protocol</th>
-            <th class="num">TVL</th>
-            <th class="num">7d</th>
-            <th class="num">Implied value</th>
-            <th>Farm plan</th>
-          </tr>
-        </thead>
-        <tbody id="boardBody"></tbody>
-      </table>
-      <table id="liveTable" hidden>
-        <thead>
-          <tr>
-            <th>Protocol</th>
-            <th class="num">Market cap</th>
-            <th class="num">TVL</th>
-            <th class="num">MCap / TVL</th>
-            <th class="num">7d</th>
-          </tr>
-        </thead>
-        <tbody id="liveBody"></tbody>
-      </table>
-      <p class="count" id="rowCount"></p>
-    </div>
-
-    <aside class="panel detail" id="detail">
-      <p class="detail-empty">Select a protocol to see its model breakdown and farm plan.</p>
-      <noscript><p class="detail-empty">This dashboard renders its data with JavaScript; enable it to explore the board.</p></noscript>
-    </aside>
-  </section>
-
-  <footer>
-    <p id="footline"></p>
-  </footer>
+  <section id="detail" hidden></section>
+  <section id="model"></section>
 </main>
+<footer>Implied value is this entry's own model output, not a prediction that a token will launch. Farm figures are dated research — re-verify in the protocol's own app before moving funds. This is research, not financial advice.</footer>
 <script src="../data.js"></script>
 <script src="app.js"></script>
 </body>
